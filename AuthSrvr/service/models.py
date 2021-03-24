@@ -15,16 +15,18 @@ License - A license in the pool
         - the username of the owner
     used_by (string) 
         - the container_id (or other non-forgeable identifier for containers)
-    is_available (boolean) 
-        - True for license that's not in use by any container
-          (TODO: do we need this is we already have the used_by field?)
-    private_key_path (string) 
-        - PATH to PEM file of private_key of a license (a unique private_key/public_key pair)
-    public_key_path (string) 
-        - PATH to PEM file of public_key of a license (a unique private_key/public_key pair)
-    last_issued (date/timestamp) 
-        - lastest timestamp when a license was assigned to a container 
-          (TODO: confirm this definition)
+    key (string) 
+        - the license (uuid)
+    is_active (boolean) 
+        - True for license is not revoked
+
+    # private_key_path (string) 
+    #     - PATH to PEM file of private_key of a license (a unique private_key/public_key pair)
+    # public_key_path (string) 
+    #     - PATH to PEM file of public_key of a license (a unique private_key/public_key pair)
+    # last_issued (date/timestamp) 
+    #     - lastest timestamp when a license was assigned to a container 
+    #       (TODO: confirm this definition)
 
 """
 
@@ -58,10 +60,11 @@ class License(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64))
     used_by = db.Column(db.String(64))
-    private_key_path = db.Column(db.String(260))
-    public_key_path = db.Column(db.String(260))
-    is_available = db.Column(db.Boolean())
-    last_issued = db.Column(db.Time())
+    key = db.Column(db.String(64))
+    # private_key_path = db.Column(db.String(260))
+    # public_key_path = db.Column(db.String(260))
+    is_active = db.Column(db.Boolean())
+    # last_issued = db.Column(db.Time())
 
     ##################################################
     # INSTANCE METHODS
@@ -96,10 +99,11 @@ class License(db.Model):
             "id": self.id,
             "username": self.username,
             "used_by": self.used_by,
-            "private_key_path": self.private_key_path,
-            "public_key_path": self.public_key_path,
-            "is_available": self.is_available,
-            "last_issued": self.last_issued,
+            "key": self.key,
+            # "private_key_path": self.private_key_path,
+            # "public_key_path": self.public_key_path,
+            "is_active": self.is_active,
+            # "last_issued": self.last_issued,
         }
 
     def deserialize(self, data: dict):
@@ -116,10 +120,11 @@ class License(db.Model):
         try:
             self.username = data["username"]
             self.used_by = data["used_by"]
-            self.private_key_path = data["private_key_path"]
-            self.public_key_path = data["public_key_path"]
-            self.is_available = data["is_available"]
-            self.last_issued = data["last_issued"]
+            self.key = data["key"]
+            # self.private_key_path = data["private_key_path"]
+            # self.public_key_path = data["public_key_path"]
+            self.is_active = data["is_active"]
+            # self.last_issued = data["last_issued"]
         except KeyError as error:
             raise DataValidationError("Invalid License: missing " + error.args[0])
         except TypeError as error:

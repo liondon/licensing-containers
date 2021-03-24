@@ -19,6 +19,7 @@ import logging
 from flask import Flask, jsonify, request, url_for, make_response, abort
 from flask_api import status  # HTTP Status Codes
 from werkzeug.exceptions import NotFound
+import uuid
 
 # For this example we'll use SQLAlchemy, a popular ORM that supports a
 # variety of backends including SQLite, MySQL, and PostgreSQL
@@ -200,9 +201,9 @@ def create_licenses():
     lic = License()
     lic.deserialize(request.get_json())
 
-    lic.last_issued = None
-    lic.used_by = None
-    lic.is_available = True
+    lic.is_active = True
+    lic.key = uuid.uuid4()
+    # lic.last_issued = None
     lic.create()
 
     message = lic.serialize()
