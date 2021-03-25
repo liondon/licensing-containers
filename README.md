@@ -48,17 +48,25 @@ docker
 5. Test the endpoints with POSTMAN or curl from your host machine
 
     ```sh
-    # create a new pet
+    # create a new license (license returned in `key`)
     curl -H "Content-Type: application/json" \
     -X POST \
-    -d '{"name":"shiba","category":"dog","available":true}' \
-    http://192.168.33.10:5000/pets
+    -d '{"username":"tester","used_by":"ae3a3498b9a7","is_active":true,"key":""}' \
+    http://192.168.33.10:5000/licenses
 
-    # list all pets
-    curl -X GET http://192.168.33.10:5000/pets        
+    # update a license
+    curl -H "Content-Type: application/json" \
+    -X POST \
+    -d '{"username":"tester","used_by":null,"is_active":false,"key":""}' \
+    http://192.168.33.10:5000/licenses/1
+
+    # list all licenses
+    curl -X GET http://192.168.33.10:5000/licenses        
     ```
 
-6. Build image and spin up the example containerized app (also a Flask server)
+6. Use `docker inspect` to get the url of the Auth server within the VM, then change the environment variable `AUTH_SERVER` in `App/Dockerfile` and/or the default value of it in the `App/app.py`.
+
+7. Build image and spin up the example containerized app (also a Flask server)
 
     ```sh
     cd /vagrant/App
@@ -66,7 +74,7 @@ docker
     docker run -p 9090:9090 --name app app:1.0
     ```
 
-7. Test the endpoints with POSTMAN or curl from your host machine
+8. Test the endpoints with POSTMAN or curl from your host machine
 
     ```sh
     # get the welcome page
@@ -76,7 +84,7 @@ docker
     curl -X GET http://192.168.33.10:9090/fibonacci?number=10 
     ```
 
-8. Remove the containers and/or images
+9. Remove the containers and/or images
 
     ```sh
     # list all containers
@@ -89,7 +97,7 @@ docker
     docker rmi <image name>
     ```
    
-9.  Exit and stop the VM
+10. Exit and stop the VM
 
     ```sh
     exit

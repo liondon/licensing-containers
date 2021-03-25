@@ -1,5 +1,8 @@
+import os
+import requests
+import json
 from flask import Flask, request, abort
-from socket import *
+import socket
 import time
 hostIP = "0.0.0.0"
 serverPort = 9090
@@ -28,6 +31,28 @@ def fib(n):
         minusTwo = minusOne
         minusOne = answer
     return answer
-    
+
+def get_license():
+    url = os.getenv("AUTH_SERVER", "http://172.17.0.1:5000")
+    container_id = socket.gethostname()
+    print(container_id)
+    data = {
+        "username": "tester",
+        "used_by": container_id,
+        "is_active": True, 
+        "key": "",
+    }
+
+    res = requests.post(url + '/licenses', json = data)
+    res = json.loads(res.text)
+    print("res", res)
+    return res["key"]
+
 if __name__ == "__main__":
+    # activate a license
+    lic = get_license()
+    print("license", lic)
+
     app.run(host=hostIP, port=serverPort)
+
+    # graceful exit

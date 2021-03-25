@@ -13,9 +13,11 @@ USER worker
 ENV HOME /app
 ENV PATH="/app/.local/bin:${PATH}"
 
-RUN pip install Flask
+RUN pip install Flask requests
 
 # Copy the application contents
 COPY . .
+
+ENV AUTH_SERVER http://172.17.0.1:5000
 
 CMD [ "python", "./app.py" ]
