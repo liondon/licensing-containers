@@ -234,6 +234,32 @@ def create_licenses():
 #     return make_response("", status.HTTP_204_NO_CONTENT)
 
 
+
+# ###################################################################
+# # DELETE A License
+# ###################################################################
+@app.route("/licenses/<int:license_id>", methods=["DELETE"])
+def delete_licenses(license_id):
+    """
+    Delete a license
+
+    This endpoint will delete a License based on the license_id in the path
+
+    """
+    app.logger.info("Request to delete license with id: %s", license_id)
+    lic = License.find(license_id)
+    if lic:
+        try:
+            lic.delete()
+            app.logger.info("License with ID [%s] delete complete.", license_id)
+            return make_response("", status.HTTP_200_OK)
+        except:
+            app.logger.info("License with ID [%s] delete failed.", license_id)
+            return make_response("", status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    
+
+
 ######################################################################
 #  U T I L I T Y   F U N C T I O N S
 ######################################################################
