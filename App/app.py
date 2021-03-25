@@ -23,6 +23,12 @@ def fibonacci():
         abort(400)
     return str(fib(n)), 200
 
+
+@app.route('/shutdown')
+def shutdown():
+    #do things
+    sys.exit()
+
 def fib(n):
     minusTwo = 0
     minusOne = 1
@@ -48,6 +54,23 @@ def get_license():
     print("res", res)
     return res["key"]
 
+
+def delete_license(lic):
+    url = os.getenv("AUTH_SERVER", "http://172.17.0.1:5000")
+    container_id = socket.gethostname()
+    print(container_id)
+    data = {
+        "username": "tester",
+        "used_by": container_id,
+        "is_active": True, 
+        "key": lic,
+    }
+
+    res = requests.delete(url + '/licenses/' +lic.license_id , json = data)
+    return res.status_code
+
+    
+
 if __name__ == "__main__":
     # activate a license
     lic = get_license()
@@ -56,3 +79,6 @@ if __name__ == "__main__":
     app.run(host=hostIP, port=serverPort)
 
     # graceful exit
+    status_c = delete_license(lic)
+    if status_c == 200:
+        
