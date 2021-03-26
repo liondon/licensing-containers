@@ -156,7 +156,7 @@ def get_licenses(license_id):
 
 
 ######################################################################
-# UPDATE AN EXISTING License
+# UPDATE AN EXISTING License with req.body containing ALL the fields
 ######################################################################
 @app.route("/licenses/<int:license_id>", methods=["PUT"])
 def update_licenses(license_id):
@@ -171,6 +171,33 @@ def update_licenses(license_id):
     if not lic:
         raise NotFound("License with id '{}' was not found.".format(license_id))
     lic.deserialize(request.get_json())
+    lic.id = license_id
+    lic.update()
+
+    app.logger.info("License with ID [%s] updated.", lic.id)
+    return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
+
+
+######################################################################
+# UPDATE AN EXISTING License with req.body containing ANY fields
+######################################################################
+@app.route("/licenses/<int:license_id>", methods=["PATCH"])
+def patch_licenses(license_id):
+    """
+    Update a License
+
+    This endpoint will update a License based the body that is posted
+    """
+    app.logger.info("Request to update license with id: %s", license_id)
+    check_content_type("application/json")
+    lic = License.find(license_id)
+    if not lic:
+        raise NotFound("License with id '{}' was not found.".format(license_id))
+
+    # use existing values for the fields
+    update_data = request.get_json()
+    for field in update_data:
+        setattr(lic, field, update_data[field])
     lic.id = license_id
     lic.update()
 
