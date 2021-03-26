@@ -151,7 +151,7 @@ def get_licenses(license_id):
     if not lic:
         raise NotFound("License with id '{}' was not found.".format(license_id))
 
-    app.logger.info("Returning lic: %s", lic.name)
+    app.logger.info("Returning lic: %s", lic.key)
     return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
 
 
