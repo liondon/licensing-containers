@@ -18,6 +18,8 @@ RUN pip install Flask requests
 # Copy the application contents
 COPY . .
 
-ENV AUTH_SERVER http://172.17.0.1:5000
+ENV AUTH_SERVER http://192.168.176.1:5000
+ENV USERNAME tester12
+ENV PASSWORD testpwd
 
 CMD [ "python", "./app.py" ]

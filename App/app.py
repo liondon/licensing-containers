@@ -1,9 +1,11 @@
 import os
+import sys
 import requests
 import json
 from flask import Flask, request, abort
 import socket
 import time
+
 hostIP = "0.0.0.0"
 serverPort = 9090
 
@@ -33,25 +35,27 @@ def fib(n):
     return answer
 
 def get_license():
-    url = os.getenv("AUTH_SERVER", "http://172.17.0.1:5000")
+    username = os.getenv("USERNAME", "tester")
+    password = os.getenv("PASSWORD", "testpwd")    
+    authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
     container_id = socket.gethostname()
-    print(container_id)
+
     data = {
-        "username": "tester",
-        "used_by": container_id,
-        "is_active": True, 
-        "key": "",
+        "username": username,
+        "password": password,
+        "used_by": container_id
     }
 
-    res = requests.post(url + '/licenses', json = data)
-    res = json.loads(res.text)
-    print("res", res)
-    return res["key"]
+    res = requests.post(authsrvr_url + '/licenses', json = data)
+    lic = json.loads(res.text)
+    return lic
 
 if __name__ == "__main__":
     # activate a license
     lic = get_license()
-    print("license", lic)
+    print("license", type(lic), lic)
+    if not lic:
+        sys.exit("Error: you don't have available license.")
 
     app.run(host=hostIP, port=serverPort)
 
