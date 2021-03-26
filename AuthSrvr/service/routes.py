@@ -20,6 +20,7 @@ from flask import Flask, jsonify, request, url_for, make_response, abort
 from flask_api import status  # HTTP Status Codes
 from werkzeug.exceptions import NotFound
 import uuid
+from datetime import datetime
 
 # For this example we'll use SQLAlchemy, a popular ORM that supports a
 # variety of backends including SQLite, MySQL, and PostgreSQL
@@ -127,20 +128,10 @@ def index():
 @app.route("/licenses", methods=["GET"])
 def list_licenses():
     """ Returns all of the Licenses """
-    app.logger.info("Request for license list")
-    licenses = []
-    # category = request.args.get("category")
-    # name = request.args.get("name")
-
-    # if category:
-    #     licenses = License.find_by_category(category)
-    # elif name:
-    #     licenses = License.find_by_name(name)
-    # else:
-    #     licenses = License.all()
-    licenses = License.all()
-
-    results = [license.serialize() for license in licenses]
+    args = request.args.to_dict()
+    app.logger.info("Request to list Licenses based on query string %s ...", args)
+    licenses = License.find_by_query_string(args)
+    results = [lic.serialize() for lic in licenses]
     app.logger.info("Returning %d licenses", len(results))
     return make_response(jsonify(results), status.HTTP_200_OK)
 
@@ -160,12 +151,12 @@ def get_licenses(license_id):
     if not lic:
         raise NotFound("License with id '{}' was not found.".format(license_id))
 
-    app.logger.info("Returning lic: %s", lic.name)
+    app.logger.info("Returning lic: %s", lic.key)
     return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
 
 
 ######################################################################
-# UPDATE AN EXISTING License
+# UPDATE AN EXISTING License with req.body containing ALL the fields
 ######################################################################
 @app.route("/licenses/<int:license_id>", methods=["PUT"])
 def update_licenses(license_id):
@@ -188,6 +179,33 @@ def update_licenses(license_id):
 
 
 ######################################################################
+# UPDATE AN EXISTING License with req.body containing ANY fields
+######################################################################
+@app.route("/licenses/<int:license_id>", methods=["PATCH"])
+def patch_licenses(license_id):
+    """
+    Update a License
+
+    This endpoint will update a License based the body that is posted
+    """
+    app.logger.info("Request to update license with id: %s", license_id)
+    check_content_type("application/json")
+    lic = License.find(license_id)
+    if not lic:
+        raise NotFound("License with id '{}' was not found.".format(license_id))
+
+    # use existing values for the fields
+    update_data = request.get_json()
+    for field in update_data:
+        setattr(lic, field, update_data[field])
+    lic.id = license_id
+    lic.update()
+
+    app.logger.info("License with ID [%s] updated.", lic.id)
+    return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
+
+
+######################################################################
 # ADD A NEW License
 ######################################################################
 @app.route("/licenses", methods=["POST"])
@@ -198,12 +216,26 @@ def create_licenses():
     """
     app.logger.info("Request to create a license")
     check_content_type("application/json")
-    lic = License()
-    lic.deserialize(request.get_json())
 
-    lic.is_active = True
-    lic.key = uuid.uuid4()
-    # lic.last_issued = None
+    data = request.get_json()
+
+    # authenticate user
+    if not authenticate(data["username"], data["password"]):
+        return make_response(jsonify({}), status.HTTP_401_UNAUTHORIZED)
+
+    # check if the user has available license
+    # TODO: max_license_available should be stored at the users table, we hardcoded it for now.
+    max_license_available = 2
+    if not check_license_available(data["username"], max_license_available):
+        return make_response(jsonify({}), status.HTTP_403_FORBIDDEN)
+
+    data["is_active"] = True
+    data["key"] = uuid.uuid4()
+    data["created_at"] = datetime.now()
+    data["revoked_at"] = None
+
+    lic = License()
+    lic.deserialize(data)
     lic.create()
 
     message = lic.serialize()
@@ -277,3 +309,17 @@ def check_content_type(content_type):
         return
     app.logger.error("Invalid Content-Type: %s", request.headers["Content-Type"])
     abort(415, "Content-Type must be {}".format(content_type))
+
+# TODO:
+def authenticate(username, password):
+    return True
+
+def check_license_available(username, max_license_available):
+    licenses = License.find_by_query_string({
+        "username": username,
+        "is_active": True
+    })
+    results = [lic.serialize() for lic in licenses]
+    app.logger.info("Returning %d licenses", len(results))
+
+    return True if len(results) < max_license_available else False

@@ -51,20 +51,48 @@ docker
     # create a new license (license returned in `key`)
     curl -H "Content-Type: application/json" \
     -X POST \
-    -d '{"username":"tester","used_by":"ae3a3498b9a7","is_active":true,"key":""}' \
-    http://192.168.33.10:5000/licenses
+    -d '{"username": "tester2","password": "testpwd","used_by": "12d8c6885151"}' \
+    http://localhost:5000/licenses
+    # Response:
+    # {
+    #   "created_at": "2021-03-26 03:53:09",
+    #   "id": 1,
+    #   "is_active": true,
+    #   "key": "9e28ed47-b788-4a25-91e6-c36f7e1d3c72",
+    #   "revoked_at": null,
+    #   "used_by": "12d8c6885151",
+    #   "username": "tester2"
+    # }
 
     # update a license
     curl -H "Content-Type: application/json" \
-    -X POST \
-    -d '{"username":"tester","used_by":null,"is_active":false,"key":""}' \
-    http://192.168.33.10:5000/licenses/1
+    -X PATCH \
+    -d '{"is_active": false,"revoked_at": "2021-03-26 12:34:56"}' \
+    http://localhost:5000/licenses/1
+    # Response:
+    # {
+    #   "created_at": "2021-03-26 03:53:09",
+    #   "id": 1,
+    #   "is_active": false,
+    #   "key": "9e28ed47-b788-4a25-91e6-c36f7e1d3c72",
+    #   "revoked_at": "2021-03-26 12:34:56",
+    #   "used_by": "12d8c6885151",
+    #   "username": "tester2"
+    # }
 
-    # list all licenses
-    curl -X GET http://192.168.33.10:5000/licenses        
+    # list/query all licenses
+    curl -X GET http://localhost:5000/licenses?username=tester&is_active=false        
     ```
 
-6. Use `docker inspect` to get the url of the Auth server within the VM, then change the environment variable `AUTH_SERVER` in `App/Dockerfile` and/or the default value of it in the `App/app.py`.
+6. Get the url of the Auth server within the VM: 
+   ```sh
+   docker inspect authserver | jq '.[0].NetworkSettings.Networks.authsrvr_web.Gateway'
+   ``` 
+   Then use it to update the ip address part in the value of environment variable `AUTH_SERVER` in `App/Dockerfile` 
+   
+   (Simply use `localhost` or `127.0.0.1` might work if you're running both the containers directly on your laptop... need to test)
+
+   **NOTE: you can also change the `USERNAME` environment variable in the dockerfile, as every user can only have 2 licenses in active now.**
 
 7. Build image and spin up the example containerized app (also a Flask server)
 
@@ -74,17 +102,33 @@ docker
     docker run -p 9090:9090 --name app app:1.0
     ```
 
-8. Test the endpoints with POSTMAN or curl from your host machine
+8. When the container is spun up, you should see the license printed out:
+    ```sh
+    # Successfully get license, then the app started:
+    license <class 'dict'> {'created_at': '2021-03-26 04:51:37', 'id': 6, 'is_active': True, 'key': '83646ee4-2750-4156-a0d8-a4cb88471465', 'revoked_at': None, 'used_by': '542f3c4c19c7', 'username': 'tester12'}
+    * Serving Flask app "app" (lazy loading)
+    * Environment: production
+      WARNING: This is a development server. Do not use it in a production deployment.
+      Use a production WSGI server instead.
+    * Debug mode: off
+    * Running on http://0.0.0.0:9090/ (Press CTRL+C to quit)
+
+    # Failed to get license, then the app exits:
+    license <class 'dict'> {}
+    Error: you don't have available license.
+    ```
+
+9.  Test the endpoints with POSTMAN or curl from your host machine
 
     ```sh
     # get the welcome page
-    curl -X GET http://192.168.33.10:9090/
+    curl -X GET http://localhost:9090/
 
     # get a fibonacci number
-    curl -X GET http://192.168.33.10:9090/fibonacci?number=10 
+    curl -X GET http://localhost:9090/fibonacci?number=10 
     ```
 
-9. Remove the containers and/or images
+10. Remove the containers and/or images
 
     ```sh
     # list all containers
@@ -96,13 +140,14 @@ docker
     #remove images
     docker rmi <image name>
     ```
-   
-10. Exit and stop the VM
+
+11. Exit and stop the VM
 
     ```sh
     exit
     vagrant halt
     ```
+
 <!-- ## Running the tests
 
 Explain how to run the automated tests for this system

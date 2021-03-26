@@ -19,14 +19,10 @@ License - A license in the pool
         - the license (uuid)
     is_active (boolean) 
         - True for license is not revoked
-
-    # private_key_path (string) 
-    #     - PATH to PEM file of private_key of a license (a unique private_key/public_key pair)
-    # public_key_path (string) 
-    #     - PATH to PEM file of public_key of a license (a unique private_key/public_key pair)
-    # last_issued (date/timestamp) 
-    #     - lastest timestamp when a license was assigned to a container 
-    #       (TODO: confirm this definition)
+    created_at (datetime.datetime() object) 
+        - datetime when a license was created/assigned to a container 
+    revoked_at (datetime.datetime() object) 
+        - datetime when a license was revoked by a container 
 
 """
 
@@ -61,17 +57,16 @@ class License(db.Model):
     username = db.Column(db.String(64))
     used_by = db.Column(db.String(64))
     key = db.Column(db.String(64))
-    # private_key_path = db.Column(db.String(260))
-    # public_key_path = db.Column(db.String(260))
     is_active = db.Column(db.Boolean())
-    # last_issued = db.Column(db.Time())
+    created_at = db.Column(db.DateTime())
+    revoked_at = db.Column(db.DateTime())
 
     ##################################################
     # INSTANCE METHODS
     ##################################################
 
     def __repr__(self):
-        return "<License %r>" % (self.name)
+        return "<License %r>" % (self.key)
 
     def create(self):
         """
@@ -100,10 +95,9 @@ class License(db.Model):
             "username": self.username,
             "used_by": self.used_by,
             "key": self.key,
-            # "private_key_path": self.private_key_path,
-            # "public_key_path": self.public_key_path,
             "is_active": self.is_active,
-            # "last_issued": self.last_issued,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at is not None else None,
+            "revoked_at": self.revoked_at.strftime("%Y-%m-%d %H:%M:%S") if self.revoked_at is not None else None,
         }
 
     def deserialize(self, data: dict):
@@ -121,10 +115,9 @@ class License(db.Model):
             self.username = data["username"]
             self.used_by = data["used_by"]
             self.key = data["key"]
-            # self.private_key_path = data["private_key_path"]
-            # self.public_key_path = data["public_key_path"]
             self.is_active = data["is_active"]
-            # self.last_issued = data["last_issued"]
+            self.created_at = data["created_at"] 
+            self.revoked_at = data["revoked_at"] 
         except KeyError as error:
             raise DataValidationError("Invalid License: missing " + error.args[0])
         except TypeError as error:
@@ -186,44 +179,8 @@ class License(db.Model):
         cls.logger.info("Processing lookup or 404 for id %s ...", license_id)
         return cls.query.get_or_404(license_id)
 
-    # @classmethod
-    # def find_by_name(cls, name: str):
-    #     """Returns all Pets with the given name
-
-    #     :param name: the name of the Pets you want to match
-    #     :type name: str
-
-    #     :return: a collection of Pets with that name
-    #     :rtype: list
-
-    #     """
-    #     cls.logger.info("Processing name query for %s ...", name)
-    #     return cls.query.filter(cls.name == name)
-
-    # @classmethod
-    # def find_by_category(cls, category: str):
-    #     """Returns all of the Pets in a category
-
-    #     :param category: the category of the Pets you want to match
-    #     :type category: str
-
-    #     :return: a collection of Pets in that category
-    #     :rtype: list
-
-    #     """
-    #     cls.logger.info("Processing category query for %s ...", category)
-    #     return cls.query.filter(cls.category == category)
-
-    # @classmethod
-    # def find_by_availability(cls, available: bool = True):
-    #     """Returns all Pets by their availability
-
-    #     :param available: True for pets that are available
-    #     :type available: str
-
-    #     :return: a collection of Pets that are available
-    #     :rtype: list
-
-    #     """
-    #     cls.logger.info("Processing available query for %s ...", available)
-    #     return cls.query.filter(cls.available == available)
+    @classmethod
+    def find_by_query_string(cls, args):
+        """ Find Licenses by query string """
+        cls.logger.info(" Processing lookup based on query string %s ...", args)
+        return cls.query.filter_by(**args).order_by(License.created_at).all()
