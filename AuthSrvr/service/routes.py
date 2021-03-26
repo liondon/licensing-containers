@@ -128,20 +128,10 @@ def index():
 @app.route("/licenses", methods=["GET"])
 def list_licenses():
     """ Returns all of the Licenses """
-    app.logger.info("Request for license list")
-    licenses = []
-    # category = request.args.get("category")
-    # name = request.args.get("name")
-
-    # if category:
-    #     licenses = License.find_by_category(category)
-    # elif name:
-    #     licenses = License.find_by_name(name)
-    # else:
-    #     licenses = License.all()
-    licenses = License.all()
-
-    results = [license.serialize() for license in licenses]
+    args = request.args.to_dict()
+    app.logger.info("Request to list Licenses based on query string %s ...", args)
+    licenses = License.find_by_query_string(args)
+    results = [lic.serialize() for lic in licenses]
     app.logger.info("Returning %d licenses", len(results))
     return make_response(jsonify(results), status.HTTP_200_OK)
 
