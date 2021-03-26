@@ -19,14 +19,10 @@ License - A license in the pool
         - the license (uuid)
     is_active (boolean) 
         - True for license is not revoked
-
-    # private_key_path (string) 
-    #     - PATH to PEM file of private_key of a license (a unique private_key/public_key pair)
-    # public_key_path (string) 
-    #     - PATH to PEM file of public_key of a license (a unique private_key/public_key pair)
-    # last_issued (date/timestamp) 
-    #     - lastest timestamp when a license was assigned to a container 
-    #       (TODO: confirm this definition)
+    created_at (datetime.datetime() object) 
+        - datetime when a license was created/assigned to a container 
+    revoked_at (datetime.datetime() object) 
+        - datetime when a license was revoked by a container 
 
 """
 
@@ -61,17 +57,16 @@ class License(db.Model):
     username = db.Column(db.String(64))
     used_by = db.Column(db.String(64))
     key = db.Column(db.String(64))
-    # private_key_path = db.Column(db.String(260))
-    # public_key_path = db.Column(db.String(260))
     is_active = db.Column(db.Boolean())
-    # last_issued = db.Column(db.Time())
+    created_at = db.Column(db.DateTime())
+    revoked_at = db.Column(db.DateTime())
 
     ##################################################
     # INSTANCE METHODS
     ##################################################
 
     def __repr__(self):
-        return "<License %r>" % (self.name)
+        return "<License %r>" % (self.key)
 
     def create(self):
         """
@@ -100,10 +95,9 @@ class License(db.Model):
             "username": self.username,
             "used_by": self.used_by,
             "key": self.key,
-            # "private_key_path": self.private_key_path,
-            # "public_key_path": self.public_key_path,
             "is_active": self.is_active,
-            # "last_issued": self.last_issued,
+            "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at is not None else None,
+            "revoked_at": self.revoked_at.strftime("%Y-%m-%d %H:%M:%S") if self.revoked_at is not None else None,
         }
 
     def deserialize(self, data: dict):
@@ -121,10 +115,9 @@ class License(db.Model):
             self.username = data["username"]
             self.used_by = data["used_by"]
             self.key = data["key"]
-            # self.private_key_path = data["private_key_path"]
-            # self.public_key_path = data["public_key_path"]
             self.is_active = data["is_active"]
-            # self.last_issued = data["last_issued"]
+            self.created_at = data["created_at"] 
+            self.revoked_at = data["revoked_at"] 
         except KeyError as error:
             raise DataValidationError("Invalid License: missing " + error.args[0])
         except TypeError as error:
