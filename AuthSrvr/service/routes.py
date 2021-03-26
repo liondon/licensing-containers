@@ -192,6 +192,16 @@ def create_licenses():
 
     data = request.get_json()
 
+    # authenticate user
+    if not authenticate(data["username"], data["password"]):
+        return make_response(jsonify({}), status.HTTP_401_UNAUTHORIZED)
+
+    # check if the user has available license
+    # TODO: max_license_available should be stored at the users table, we hardcoded it for now.
+    max_license_available = 2
+    if not check_license_available(data["username"], max_license_available):
+        return make_response(jsonify({}), status.HTTP_403_FORBIDDEN)
+
     data["is_active"] = True
     data["key"] = uuid.uuid4()
     data["created_at"] = datetime.now()
@@ -246,3 +256,17 @@ def check_content_type(content_type):
         return
     app.logger.error("Invalid Content-Type: %s", request.headers["Content-Type"])
     abort(415, "Content-Type must be {}".format(content_type))
+
+# TODO:
+def authenticate(username, password):
+    return True
+
+def check_license_available(username, max_license_available):
+    licenses = License.find_by_query_string({
+        "username": username,
+        "is_active": True
+    })
+    results = [lic.serialize() for lic in licenses]
+    app.logger.info("Returning %d licenses", len(results))
+
+    return True if len(results) < max_license_available else False
