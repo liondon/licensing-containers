@@ -51,17 +51,37 @@ docker
     # create a new license (license returned in `key`)
     curl -H "Content-Type: application/json" \
     -X POST \
-    -d '{"username":"tester","used_by":"ae3a3498b9a7","is_active":true,"key":""}' \
+    -d '{"username": "tester2","password": "testpwd","used_by": "12d8c6885151"}' \
     http://192.168.33.10:5000/licenses
+    # Response:
+    # {
+    #   "created_at": "2021-03-26 03:53:09",
+    #   "id": 1,
+    #   "is_active": true,
+    #   "key": "9e28ed47-b788-4a25-91e6-c36f7e1d3c72",
+    #   "revoked_at": null,
+    #   "used_by": "12d8c6885151",
+    #   "username": "tester2"
+    # }
 
     # update a license
     curl -H "Content-Type: application/json" \
-    -X POST \
-    -d '{"username":"tester","used_by":null,"is_active":false,"key":""}' \
+    -X PATCH \
+    -d '{"is_active": false,"revoked_at": "2021-03-26 12:34:56"}' \
     http://192.168.33.10:5000/licenses/1
+    # Response:
+    # {
+    #   "created_at": "2021-03-26 03:53:09",
+    #   "id": 1,
+    #   "is_active": false,
+    #   "key": "9e28ed47-b788-4a25-91e6-c36f7e1d3c72",
+    #   "revoked_at": "2021-03-26 12:34:56",
+    #   "used_by": "12d8c6885151",
+    #   "username": "tester2"
+    # }
 
-    # list all licenses
-    curl -X GET http://192.168.33.10:5000/licenses        
+    # list/query all licenses
+    curl -X GET http://192.168.33.10:5000/licenses?username=tester&is_active=false        
     ```
 
 6. Use `docker inspect` to get the url of the Auth server within the VM, then change the environment variable `AUTH_SERVER` in `App/Dockerfile` and/or the default value of it in the `App/app.py`.
