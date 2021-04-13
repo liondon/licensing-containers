@@ -5,6 +5,7 @@ import json
 from flask import Flask, request, abort
 import socket
 import time
+from datetime import datetime
 
 hostIP = "0.0.0.0"
 serverPort = 9090
@@ -67,10 +68,23 @@ def delete_license(lic):
         "is_active": True, 
         "key": lic,
     }
-
     res = requests.delete(url + '/licenses/' +lic.license_id , json = data)
     return res.status_code
 
+
+def revoke_license(license_id):
+    # username = os.getenv("USERNAME", "tester")
+    # password = os.getenv("PASSWORD", "testpwd")    
+    authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
+    # container_id = socket.gethostname()
+
+    data = {
+        "is_active": False,
+        "revoked_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    res = requests.patch(authsrvr_url + '/licenses/' + str(license_id), json = data)
+    return res
     
 
 if __name__ == "__main__":
@@ -83,6 +97,7 @@ if __name__ == "__main__":
     app.run(host=hostIP, port=serverPort)
 
     # graceful exit
-    status_c = delete_license(lic)
-    if status_c == 200:
-        
+    while True:
+        res = revoke_license(lic["id"])
+        if res.status_code == 200:
+            sys.exit("Info: successfully revoked the license.")

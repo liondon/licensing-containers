@@ -13,7 +13,7 @@ USER worker
 ENV HOME /app
 ENV PATH="/app/.local/bin:${PATH}"
 
-RUN pip install Flask requests
+RUN pip install Flask requests datetime
 
 # Copy the application contents
 COPY . .
