@@ -272,33 +272,40 @@ def create_licenses():
 
 
 ######################################################################
-# RETRIEVE A License
-# update to check request body if the container_id and key match
+# Endpoint for periodical checkin
 ######################################################################
-@app.route("/licenses/<int:license_id>", methods=["GET"])
-def get_licenses(license_id):
+@app.route("/licenses/<int:license_id>/checkin", methods=["POST"])
+def periodically_checkin(license_id):
     """
-    Retrieve a single License
-    This endpoint will return a License based on it's id
+    When the application container ping this endpoint,
+    Then AS checks the `container_id` and `key` in request body,
+    If they do not match the record in DB, 
+        return 403 Forbidden
+    If they matches the record in DB, 
+        Then AS updated a field `last_checkedin` to current time,
+        return 200 if succeeded
+        return 500 if failed
     """
-    app.logger.info("Request for license with id: %s", license_id)
+    app.logger.info("Checkin request for license with id: %s", license_id)
+    check_content_type("application/json")
+
     lic = License.find(license_id)
-    request_body = request.get_json()
     if not lic:
         raise NotFound("License with id '{}' was not found.".format(license_id))
 
     # check if request matches the record in DB
     else:
+        request_body = request.get_json()
         req_cid = request_body['used_by']
         req_key = request_body['key']
-        lic_cid = lic['used_by']
-        lic_key = lic['key']
+        lic_cid = lic.used_by
+        lic_key = lic.key
 
         if lic_cid == req_cid and lic_key == req_key:
             # update 'last_checkin' to current time
             try:
-                lic['last_checkin'] = datetime.now().strftime("%H:%M:%S")
-                app.logger.info("Returning lic: %s", lic.name)
+                lic.last_checkin = datetime.now()
+                lic.update()    # actually write to the database
                 return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
             except:
                 raise InternalServerError("Failed to update last_checkin field of current license with id '{}'.".format(license_id))
