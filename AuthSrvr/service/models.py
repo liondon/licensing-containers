@@ -23,6 +23,8 @@ License - A license in the pool
         - datetime when a license was created/assigned to a container 
     revoked_at (datetime.datetime() object) 
         - datetime when a license was revoked by a container 
+    last_checkin
+        - the time when the license is last checked in
 
 """
 
@@ -60,6 +62,7 @@ class License(db.Model):
     is_active = db.Column(db.Boolean())
     created_at = db.Column(db.DateTime())
     revoked_at = db.Column(db.DateTime())
+    last_checkin = datetime.now().strftime("%H:%M:%S")
 
     ##################################################
     # INSTANCE METHODS

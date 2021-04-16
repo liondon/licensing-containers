@@ -270,12 +270,39 @@ def create_licenses():
 #             return make_response("", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-
-
+######################################################################
+# RETRIEVE A License
+# update to check request body if the container_id and key match
+######################################################################
+@app.route("/licenses/<int:license_id>", methods=["GET"])
+def get_licenses(license_id):
     """
-
-
+    Retrieve a single License
+    This endpoint will return a License based on it's id
+    """
+    app.logger.info("Request for license with id: %s", license_id)
     lic = License.find(license_id)
+    request_body = request.get_json()
+    if not lic:
+        raise NotFound("License with id '{}' was not found.".format(license_id))
+
+    # check if request matches the record in DB
+    else:
+        req_cid = request_body['used_by']
+        req_key = request_body['key']
+        lic_cid = lic['used_by']
+        lic_key = lic['key']
+
+        if lic_cid == req_cid and lic_key == req_key:
+            # update 'last_checkin' to current time
+            try:
+                lic['last_checkin'] = datetime.now().strftime("%H:%M:%S")
+                app.logger.info("Returning lic: %s", lic.name)
+                return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
+            except:
+                raise InternalServerError("Failed to update last_checkin field of current license with id '{}'.".format(license_id))
+        else:
+            raise Forbidden("The info of '{}' does not match the record in DB.".format(license_id))
 
 
 ######################################################################
