@@ -37,9 +37,12 @@ docker
     docker run hello-world
     ```
 
-3. Spin up the Authorizing Server with docker-compose
+3. Spin up the Authorizing Server with docker-compose. **(NOTE: remove the volume if the data schema has been modified, otherwise the table will not be updated.)**
 
     ```sh
+    # remove the volume for database if data schema is updated
+    docker volume remove authsrvr_psql_data
+
     cd /vagrant/AuthSrvr
     docker-compose up
     ```
