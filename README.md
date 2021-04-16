@@ -19,39 +19,38 @@ docker
 
 ### Installing
 
-1. (optional) Spin up and access the VM
+1. (optional) Spin up and access the VM. (NOTE: when you spin up the VM for the first time, it might not finish all the provisioning process, just provision it again.)
 
     ```sh
     $ vagrant up
     $ vagrant ssh
+    
+    # provision the VM again if needed.
+    $ vagrant up --provision
     ```
 
-2. Test docker installation
+    **NOTE: the project root directory is synced with `/vagrant` in the VM**
+
+2. Test docker installation.
 
     ```sh
     docker run hello-world
     ```
 
-3. Go to the project root directory (it's synced with `/vagrant` in the VM)
-
-    ```sh
-    cd /vagrant
-    ```
-
-4. Spin up example Flask app and Postgres database instance with docker-compose
+3. Spin up the Authorizing Server with docker-compose
 
     ```sh
     cd /vagrant/AuthSrvr
     docker-compose up
     ```
 
-5. Test the endpoints with POSTMAN or curl from your host machine
+4. Test the endpoints with POSTMAN or curl from your host machine (NOTE: replace `localhost` with `192.168.33.10` if you're using vagrant VM.)
 
     ```sh
     # create a new license (license returned in `key`)
     curl -H "Content-Type: application/json" \
     -X POST \
-    -d '{"username": "tester2","password": "testpwd","used_by": "12d8c6885151"}' \
+    -d '{"username": "tester","password": "testpwd","used_by": "12d8c6885151"}' \
     http://localhost:5000/licenses
     # Response:
     # {
@@ -61,7 +60,7 @@ docker
     #   "key": "9e28ed47-b788-4a25-91e6-c36f7e1d3c72",
     #   "revoked_at": null,
     #   "used_by": "12d8c6885151",
-    #   "username": "tester2"
+    #   "username": "tester"
     # }
 
     # update a license
@@ -77,24 +76,14 @@ docker
     #   "key": "9e28ed47-b788-4a25-91e6-c36f7e1d3c72",
     #   "revoked_at": "2021-03-26 12:34:56",
     #   "used_by": "12d8c6885151",
-    #   "username": "tester2"
+    #   "username": "tester"
     # }
 
     # list/query all licenses
-    curl -X GET http://localhost:5000/licenses?username=tester&is_active=false        
+    curl -X GET "http://localhost:5000/licenses?username=tester&is_active=false"        
     ```
 
-6. Get the url of the Auth server within the VM: 
-   ```sh
-   docker inspect authserver | jq '.[0].NetworkSettings.Networks.authsrvr_web.Gateway'
-   ``` 
-   Then use it to update the ip address part in the value of environment variable `AUTH_SERVER` in `App/Dockerfile` 
-   
-   (Simply use `localhost` or `127.0.0.1` might work if you're running both the containers directly on your laptop... need to test)
-
-   **NOTE: you can also change the `USERNAME` environment variable in the dockerfile, as every user can only have 2 licenses in active now.**
-
-7. Build image and spin up the example containerized app (also a Flask server)
+5. Build image and spin up the example containerized app (also a Flask server)
 
     ```sh
     cd /vagrant/App
@@ -102,7 +91,9 @@ docker
     docker run -p 9090:9090 --name app app:1.0
     ```
 
-8. When the container is spun up, you should see the license printed out:
+   **NOTE: you can also change the `USERNAME` environment variable in `App/Dockerfile`, as every user can only have 2 licenses in active now.**
+
+6. When the container is spun up, you should see the license printed out:
     ```sh
     # Successfully get license, then the app started:
     license <class 'dict'> {'created_at': '2021-03-26 04:51:37', 'id': 6, 'is_active': True, 'key': '83646ee4-2750-4156-a0d8-a4cb88471465', 'revoked_at': None, 'used_by': '542f3c4c19c7', 'username': 'tester12'}
@@ -118,7 +109,7 @@ docker
     Error: you don't have available license.
     ```
 
-9.  Test the endpoints with POSTMAN or curl from your host machine
+7.  Test the endpoints with POSTMAN or curl from your host machine (NOTE: replace `localhost` with `192.168.33.10` if you're using vagrant VM.)
 
     ```sh
     # get the welcome page
@@ -128,7 +119,7 @@ docker
     curl -X GET http://localhost:9090/fibonacci?number=10 
     ```
 
-10. Remove the containers and/or images
+8.  Remove the containers and/or images
 
     ```sh
     # list all containers
@@ -141,7 +132,7 @@ docker
     docker rmi <image name>
     ```
 
-11. Exit and stop the VM
+9.  Exit and stop the VM
 
     ```sh
     exit
