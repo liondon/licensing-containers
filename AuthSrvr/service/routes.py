@@ -247,49 +247,35 @@ def create_licenses():
     )
 
 
-# ######################################################################
-# # DELETE A PET
-# ######################################################################
-# @app.route("/pets/<int:pet_id>", methods=["DELETE"])
-# def delete_pets(pet_id):
+# # ###################################################################
+# # # DELETE A License
+# # ###################################################################
+# @app.route("/licenses/<int:license_id>", methods=["DELETE"])
+# def delete_licenses(license_id):
 #     """
-#     Delete a Pet
+#     Delete a license
 
-#     This endpoint will delete a Pet based the id specified in the path
+#     This endpoint will delete a License based on the license_id in the path
+
 #     """
-#     app.logger.info("Request to delete pet with id: %s", pet_id)
-#     pet = Pet.find(pet_id)
-#     if pet:
-#         pet.delete()
+#     app.logger.info("Request to delete license with id: %s", license_id)
+#     lic = License.find(license_id)
+#     if lic:
+#         try:
+#             lic.delete()
+#             app.logger.info("License with ID [%s] delete complete.", license_id)
+#             return make_response("", status.HTTP_200_OK)
+#         except:
+#             app.logger.info("License with ID [%s] delete failed.", license_id)
+#             return make_response("", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-#     app.logger.info("Pet with ID [%s] delete complete.", pet_id)
-#     return make_response("", status.HTTP_204_NO_CONTENT)
 
 
-
-# ###################################################################
-# # DELETE A License
-# ###################################################################
-@app.route("/licenses/<int:license_id>", methods=["DELETE"])
-def delete_licenses(license_id):
-    """
-    Delete a license
-
-    This endpoint will delete a License based on the license_id in the path
 
     """
-    app.logger.info("Request to delete license with id: %s", license_id)
+
+
     lic = License.find(license_id)
-    if lic:
-        try:
-            lic.delete()
-            app.logger.info("License with ID [%s] delete complete.", license_id)
-            return make_response("", status.HTTP_200_OK)
-        except:
-            app.logger.info("License with ID [%s] delete failed.", license_id)
-            return make_response("", status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-    
 
 
 ######################################################################
