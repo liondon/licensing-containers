@@ -58,18 +58,18 @@ def get_license():
     return lic
 
 
-def delete_license(lic):
-    url = os.getenv("AUTH_SERVER", "http://172.17.0.1:5000")
-    container_id = socket.gethostname()
-    print(container_id)
-    data = {
-        "username": "tester",
-        "used_by": container_id,
-        "is_active": True, 
-        "key": lic,
-    }
-    res = requests.delete(url + '/licenses/' +lic.license_id , json = data)
-    return res.status_code
+# def delete_license(lic):
+#     url = os.getenv("AUTH_SERVER", "http://172.17.0.1:5000")
+#     container_id = socket.gethostname()
+#     print(container_id)
+#     data = {
+#         "username": "tester",
+#         "used_by": container_id,
+#         "is_active": True, 
+#         "key": lic,
+#     }
+#     res = requests.delete(url + '/licenses/' +lic.license_id , json = data)
+#     return res.status_code
 
 
 def revoke_license(license_id):
