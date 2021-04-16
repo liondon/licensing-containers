@@ -87,6 +87,22 @@ def revoke_license(license_id):
     return res
     
 
+def periodically_checkin(license_id):
+    username = os.getenv("USERNAME", "tester")
+    password = os.getenv("PASSWORD", "testpwd")    
+    authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
+    container_id = socket.gethostname()
+
+    data = {
+        "username":"tester",
+        "used_by": container_id,
+        "is_active": True,
+        "key": license_id
+    }
+
+    res = requests.get(authsrvr_url + '/licenses/' + str(license_id), json = data)
+    return res
+
 if __name__ == "__main__":
     # activate a license
     lic = get_license()
@@ -97,7 +113,26 @@ if __name__ == "__main__":
     app.run(host=hostIP, port=serverPort)
 
     # graceful exit
+    check_period = 5
+    start_time  = time.time()
+
+
+    # deal with non-graceful exit in addition of graceful exit
     while True:
+        current_time = time.time()
+        elapsed_time = current_time - start_time
+
+        if elapsed_time > check_period:
+            need_check = True
+            while need_check:
+                res = periodically_checkin(lic["id"])
+                if res.status_code == 200:
+                    need_check = False
+                    print("Finished checkin without issue!")
+
+            start_time = time.time()
+
+
         res = revoke_license(lic["id"])
         if res.status_code == 200:
             sys.exit("Info: successfully revoked the license.")
