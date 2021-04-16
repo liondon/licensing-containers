@@ -233,6 +233,7 @@ def create_licenses():
     data["key"] = uuid.uuid4()
     data["created_at"] = datetime.now()
     data["revoked_at"] = None
+    data["last_checkin"] = datetime.now()
 
     lic = License()
     lic.deserialize(data)

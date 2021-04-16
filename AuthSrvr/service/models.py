@@ -62,7 +62,7 @@ class License(db.Model):
     is_active = db.Column(db.Boolean())
     created_at = db.Column(db.DateTime())
     revoked_at = db.Column(db.DateTime())
-    last_checkin = datetime.now().strftime("%H:%M:%S")
+    last_checkin = db.Column(db.DateTime())
 
     ##################################################
     # INSTANCE METHODS
@@ -101,6 +101,7 @@ class License(db.Model):
             "is_active": self.is_active,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at is not None else None,
             "revoked_at": self.revoked_at.strftime("%Y-%m-%d %H:%M:%S") if self.revoked_at is not None else None,
+            "last_checkin": self.last_checkin.strftime("%Y-%m-%d %H:%M:%S") if self.last_checkin is not None else None,
         }
 
     def deserialize(self, data: dict):
@@ -121,6 +122,7 @@ class License(db.Model):
             self.is_active = data["is_active"]
             self.created_at = data["created_at"] 
             self.revoked_at = data["revoked_at"] 
+            self.last_checkin = data["last_checkin"] 
         except KeyError as error:
             raise DataValidationError("Invalid License: missing " + error.args[0])
         except TypeError as error:
