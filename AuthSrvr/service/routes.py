@@ -18,7 +18,7 @@ import sys
 import logging
 from flask import Flask, jsonify, request, url_for, make_response, abort
 from flask_api import status  # HTTP Status Codes
-from werkzeug.exceptions import NotFound
+from werkzeug.exceptions import NotFound, Forbidden, InternalServerError
 import uuid
 from datetime import datetime
 
@@ -233,6 +233,7 @@ def create_licenses():
     data["key"] = uuid.uuid4()
     data["created_at"] = datetime.now()
     data["revoked_at"] = None
+    data["last_checkin"] = datetime.now()
 
     lic = License()
     lic.deserialize(data)
@@ -247,49 +248,69 @@ def create_licenses():
     )
 
 
-# ######################################################################
-# # DELETE A PET
-# ######################################################################
-# @app.route("/pets/<int:pet_id>", methods=["DELETE"])
-# def delete_pets(pet_id):
+# # ###################################################################
+# # # DELETE A License
+# # ###################################################################
+# @app.route("/licenses/<int:license_id>", methods=["DELETE"])
+# def delete_licenses(license_id):
 #     """
-#     Delete a Pet
+#     Delete a license
 
-#     This endpoint will delete a Pet based the id specified in the path
+#     This endpoint will delete a License based on the license_id in the path
+
 #     """
-#     app.logger.info("Request to delete pet with id: %s", pet_id)
-#     pet = Pet.find(pet_id)
-#     if pet:
-#         pet.delete()
+#     app.logger.info("Request to delete license with id: %s", license_id)
+#     lic = License.find(license_id)
+#     if lic:
+#         try:
+#             lic.delete()
+#             app.logger.info("License with ID [%s] delete complete.", license_id)
+#             return make_response("", status.HTTP_200_OK)
+#         except:
+#             app.logger.info("License with ID [%s] delete failed.", license_id)
+#             return make_response("", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-#     app.logger.info("Pet with ID [%s] delete complete.", pet_id)
-#     return make_response("", status.HTTP_204_NO_CONTENT)
 
-
-
-# ###################################################################
-# # DELETE A License
-# ###################################################################
-@app.route("/licenses/<int:license_id>", methods=["DELETE"])
-def delete_licenses(license_id):
+######################################################################
+# Endpoint for periodical checkin
+######################################################################
+@app.route("/licenses/<int:license_id>/checkin", methods=["POST"])
+def periodically_checkin(license_id):
     """
-    Delete a license
-
-    This endpoint will delete a License based on the license_id in the path
-
+    When the application container ping this endpoint,
+    Then AS checks the `container_id` and `key` in request body,
+    If they do not match the record in DB, 
+        return 403 Forbidden
+    If they matches the record in DB, 
+        Then AS updated a field `last_checkedin` to current time,
+        return 200 if succeeded
+        return 500 if failed
     """
-    app.logger.info("Request to delete license with id: %s", license_id)
+    app.logger.info("Checkin request for license with id: %s", license_id)
+    check_content_type("application/json")
+
     lic = License.find(license_id)
-    if lic:
-        try:
-            lic.delete()
-            app.logger.info("License with ID [%s] delete complete.", license_id)
-            return make_response("", status.HTTP_200_OK)
-        except:
-            app.logger.info("License with ID [%s] delete failed.", license_id)
-            return make_response("", status.HTTP_500_INTERNAL_SERVER_ERROR)
-            
-    
+    if not lic:
+        raise NotFound("License with id '{}' was not found.".format(license_id))
+
+    # check if request matches the record in DB
+    else:
+        request_body = request.get_json()
+        req_cid = request_body['used_by']
+        req_key = request_body['key']
+        lic_cid = lic.used_by
+        lic_key = lic.key
+
+        if lic_cid == req_cid and lic_key == req_key:
+            # update 'last_checkin' to current time
+            try:
+                lic.last_checkin = datetime.now()
+                lic.update()    # actually write to the database
+                return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
+            except:
+                raise InternalServerError("Failed to update last_checkin field of current license with id '{}'.".format(license_id))
+        else:
+            raise Forbidden("The info of '{}' does not match the record in DB.".format(license_id))
 
 
 ######################################################################
