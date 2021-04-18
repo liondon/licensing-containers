@@ -113,25 +113,23 @@ if __name__ == "__main__":
     app.run(host=hostIP, port=serverPort)
 
     # graceful exit
-    check_period = 5
-    start_time  = time.time()
 
-
-    # deal with non-graceful exit in addition of graceful exit
+    # check_period = 5
+    # start_time  = time.time()
+    # # deal with non-graceful exit in addition of graceful exit
     while True:
-        current_time = time.time()
-        elapsed_time = current_time - start_time
+        # current_time = time.time()
+        # elapsed_time = current_time - start_time
 
-        if elapsed_time > check_period:
-            need_check = True
-            while need_check:
-                res = periodically_checkin(lic["id"])
-                if res.status_code == 200:
-                    need_check = False
-                    print("Finished checkin without issue!")
+        # if elapsed_time > check_period:
+        #     need_check = True
+        #     while need_check:
+        #         res = periodically_checkin(lic["id"])
+        #         if res.status_code == 200:
+        #             need_check = False
+        #             print("Finished checkin without issue!")
 
-            start_time = time.time()
-
+        #     start_time = time.time()
 
         res = revoke_license(lic["id"])
         if res.status_code == 200:
