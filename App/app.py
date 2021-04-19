@@ -10,8 +10,65 @@ from datetime import datetime
 hostIP = "0.0.0.0"
 serverPort = 9090
 
+# import environment variables
+username = os.getenv("USERNAME", "tester")
+password = os.getenv("PASSWORD", "testpwd")    
+authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
+container_id = socket.gethostname()
+
+# create app
 app = Flask(__name__)
-#app.debug = True
+# app.debug = True
+
+
+
+######################################################################
+#  L I C E N S I N G    r e l a t e d    f u n c t i o n s
+######################################################################
+def get_license():
+    data = {
+        "username": username,
+        "password": password,
+        "used_by": container_id
+    }
+
+    res = requests.post(authsrvr_url + '/licenses', json = data)
+    lic = json.loads(res.text)
+    return lic
+
+def revoke_license(license_id):
+    data = {
+        "is_active": False,
+        "revoked_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    }
+
+    res = requests.patch(authsrvr_url + '/licenses/' + str(license_id), json = data)
+    return res
+
+def periodically_checkin(license_id):
+
+    data = {
+        "username":"tester",
+        "used_by": container_id,
+        "is_active": True,
+        "key": license_id
+    }
+
+    res = requests.get(authsrvr_url + '/licenses/' + str(license_id), json = data)
+    return res
+
+
+######################################################################
+#  E X A M P L E    C O N T A I N E R I Z E D    A P P
+######################################################################
+def fib(n):
+    minusTwo = 0
+    minusOne = 1
+    for i in range(2, n + 1):
+        answer = minusOne + minusTwo
+        minusTwo = minusOne
+        minusOne = answer
+    return answer
 
 @app.route("/")
 def hello():
@@ -26,90 +83,24 @@ def fibonacci():
         abort(400)
     return str(fib(n)), 200
 
-
-@app.route('/shutdown')
-def shutdown():
-    #do things
-    sys.exit()
-
-def fib(n):
-    minusTwo = 0
-    minusOne = 1
-    for i in range(2, n + 1):
-        answer = minusOne + minusTwo
-        minusTwo = minusOne
-        minusOne = answer
-    return answer
-
-def get_license():
-    username = os.getenv("USERNAME", "tester")
-    password = os.getenv("PASSWORD", "testpwd")    
-    authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
-    container_id = socket.gethostname()
-
-    data = {
-        "username": username,
-        "password": password,
-        "used_by": container_id
-    }
-
-    res = requests.post(authsrvr_url + '/licenses', json = data)
-    lic = json.loads(res.text)
-    return lic
+# @app.route('/shutdown')
+# def shutdown():
+#     #do things
+#     sys.exit()
 
 
-# def delete_license(lic):
-#     url = os.getenv("AUTH_SERVER", "http://172.17.0.1:5000")
-#     container_id = socket.gethostname()
-#     print(container_id)
-#     data = {
-#         "username": "tester",
-#         "used_by": container_id,
-#         "is_active": True, 
-#         "key": lic,
-#     }
-#     res = requests.delete(url + '/licenses/' +lic.license_id , json = data)
-#     return res.status_code
-
-
-def revoke_license(license_id):
-    # username = os.getenv("USERNAME", "tester")
-    # password = os.getenv("PASSWORD", "testpwd")    
-    authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
-    # container_id = socket.gethostname()
-
-    data = {
-        "is_active": False,
-        "revoked_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    }
-
-    res = requests.patch(authsrvr_url + '/licenses/' + str(license_id), json = data)
-    return res
-    
-
-def periodically_checkin(license_id):
-    username = os.getenv("USERNAME", "tester")
-    password = os.getenv("PASSWORD", "testpwd")    
-    authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
-    container_id = socket.gethostname()
-
-    data = {
-        "username":"tester",
-        "used_by": container_id,
-        "is_active": True,
-        "key": license_id
-    }
-
-    res = requests.get(authsrvr_url + '/licenses/' + str(license_id), json = data)
-    return res
-
+######################################################################
+#  R U N N I N G    T H E    F L A S K    A P P
+######################################################################
 if __name__ == "__main__":
+
     # activate a license
     lic = get_license()
     print("license", type(lic), lic)
     if not lic:
-        sys.exit("Error: you don't have available license.")
+        sys.exit("Error: failed to get license.")
 
+    # start the application
     app.run(host=hostIP, port=serverPort)
 
     # graceful exit
@@ -134,3 +125,7 @@ if __name__ == "__main__":
         res = revoke_license(lic["id"])
         if res.status_code == 200:
             sys.exit("Info: successfully revoked the license.")
+        elif res.status_code >= 400 and res.status_code < 500:
+            sys.exit("Error: failed to revoke the license due to client side error.")
+        elif res.status_code >= 500:
+            print("Error: server side error, try again.")

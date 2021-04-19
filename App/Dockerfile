@@ -19,7 +19,7 @@ RUN pip install Flask requests datetime
 COPY . .
 
 ENV AUTH_SERVER http://172.16.238.1:5000
-ENV USERNAME tester12
+ENV USERNAME tester
 ENV PASSWORD testpwd
 
 CMD [ "python", "./app.py" ]
