@@ -38,7 +38,6 @@ def request_validation_error(error):
     """ Handles Value Errors from bad data """
     return bad_request(error)
 
-
 @app.errorhandler(status.HTTP_400_BAD_REQUEST)
 def bad_request(error):
     """ Handles bad reuests with 400_BAD_REQUEST """
@@ -50,7 +49,6 @@ def bad_request(error):
         status.HTTP_400_BAD_REQUEST,
     )
 
-
 @app.errorhandler(status.HTTP_404_NOT_FOUND)
 def not_found(error):
     """ Handles resources not found with 404_NOT_FOUND """
@@ -61,7 +59,6 @@ def not_found(error):
         ),
         status.HTTP_404_NOT_FOUND,
     )
-
 
 @app.errorhandler(status.HTTP_405_METHOD_NOT_ALLOWED)
 def method_not_supported(error):
@@ -76,7 +73,6 @@ def method_not_supported(error):
         status.HTTP_405_METHOD_NOT_ALLOWED,
     )
 
-
 @app.errorhandler(status.HTTP_415_UNSUPPORTED_MEDIA_TYPE)
 def mediatype_not_supported(error):
     """ Handles unsuppoted media requests with 415_UNSUPPORTED_MEDIA_TYPE """
@@ -89,7 +85,6 @@ def mediatype_not_supported(error):
         ),
         status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
     )
-
 
 @app.errorhandler(status.HTTP_500_INTERNAL_SERVER_ERROR)
 def internal_server_error(error):
@@ -300,12 +295,17 @@ def periodically_checkin(license_id):
         req_key = request_body['key']
         lic_cid = lic.used_by
         lic_key = lic.key
+        app.logger.debug("req_cid: {}".format(req_cid))
+        app.logger.debug("req_key: {}".format(req_key))
+        app.logger.debug("lic_cid: {}".format(lic_cid))
+        app.logger.debug("lic_key: {}".format(lic_key))
 
         if lic_cid == req_cid and lic_key == req_key:
             # update 'last_checkin' to current time
             try:
                 lic.last_checkin = datetime.now()
                 lic.update()    # actually write to the database
+                app.logger.info("Successfully updated last_checkin field of current license with id '{}'.".format(license_id))
                 return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
             except:
                 raise InternalServerError("Failed to update last_checkin field of current license with id '{}'.".format(license_id))
@@ -316,13 +316,10 @@ def periodically_checkin(license_id):
 ######################################################################
 #  U T I L I T Y   F U N C T I O N S
 ######################################################################
-
-
 def init_db():
     """ Initializes the SQLAlchemy app """
     global app
     License.init_db(app)
-
 
 def check_content_type(content_type):
     """ Checks that the media type is correct """
