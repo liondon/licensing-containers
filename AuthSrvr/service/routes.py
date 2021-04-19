@@ -295,12 +295,17 @@ def periodically_checkin(license_id):
         req_key = request_body['key']
         lic_cid = lic.used_by
         lic_key = lic.key
+        app.logger.debug("req_cid: {}".format(req_cid))
+        app.logger.debug("req_key: {}".format(req_key))
+        app.logger.debug("lic_cid: {}".format(lic_cid))
+        app.logger.debug("lic_key: {}".format(lic_key))
 
         if lic_cid == req_cid and lic_key == req_key:
             # update 'last_checkin' to current time
             try:
                 lic.last_checkin = datetime.now()
                 lic.update()    # actually write to the database
+                app.logger.info("Successfully updated last_checkin field of current license with id '{}'.".format(license_id))
                 return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
             except:
                 raise InternalServerError("Failed to update last_checkin field of current license with id '{}'.".format(license_id))

@@ -3,6 +3,7 @@ import sys
 import requests
 import json
 from flask import Flask, request, abort
+import logging
 import socket
 import time
 from datetime import datetime
@@ -21,6 +22,9 @@ app = Flask(__name__)
 # app.debug = True
 
 
+# config logger
+logging.basicConfig()
+app.logger.setLevel(logging.INFO)
 
 ######################################################################
 #  L I C E N S I N G    r e l a t e d    f u n c t i o n s
@@ -77,7 +81,7 @@ def hello():
 @app.route("/fibonacci", methods = ['GET'])
 def fibonacci():
     try:
-        print("Got a request: ", request.args.get("number"))
+        app.logger.info("Got a request: ", request.args.get("number"))
         n = int(request.args.get("number"))
     except:
         abort(400)
@@ -93,39 +97,34 @@ def fibonacci():
 #  R U N N I N G    T H E    F L A S K    A P P
 ######################################################################
 if __name__ == "__main__":
+    try:
+        # activate a license
+        lic = get_license()
+        print("license", type(lic), lic)
+        if not lic:
+            sys.exit("Error: failed to get license.")
 
-    # activate a license
-    lic = get_license()
-    print("license", type(lic), lic)
-    if not lic:
-        sys.exit("Error: failed to get license.")
+        # start the application
+        app.run(host=hostIP, port=serverPort)
 
-    # start the application
-    app.run(host=hostIP, port=serverPort)
+        # graceful exit
+        while True:
+            res = revoke_license(lic["id"])
+            print("Info: revoking license... res.status_code = {}".format(res.status_code))
+            if res.status_code == 200:
+                print("Info: successfully revoked the license.")
+                break
+            elif res.status_code >= 400 and res.status_code < 500:
+                sys.exit("Error: failed to revoke the license due to client side error.")
+            elif res.status_code >= 500:
+                print("Error: server side error, try again.")
+                time.sleep(30)
 
-    # graceful exit
+    except requests.exceptions.ConnectionError:
+        sys.exit("Error: cannot connect to Authorizing Server")
 
-    # check_period = 5
-    # start_time  = time.time()
-    # # deal with non-graceful exit in addition of graceful exit
-    while True:
-        # current_time = time.time()
-        # elapsed_time = current_time - start_time
+    except SystemExit:
+        raise
 
-        # if elapsed_time > check_period:
-        #     need_check = True
-        #     while need_check:
-        #         res = periodically_checkin(lic["id"])
-        #         if res.status_code == 200:
-        #             need_check = False
-        #             print("Finished checkin without issue!")
-
-        #     start_time = time.time()
-
-        res = revoke_license(lic["id"])
-        if res.status_code == 200:
-            sys.exit("Info: successfully revoked the license.")
-        elif res.status_code >= 400 and res.status_code < 500:
-            sys.exit("Error: failed to revoke the license due to client side error.")
-        elif res.status_code >= 500:
-            print("Error: server side error, try again.")
+    except:
+        print("Error: unexpected error occurred.", sys.exc_info()[0])
