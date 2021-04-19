@@ -3,6 +3,7 @@ import sys
 import requests
 import json
 from flask import Flask, request, abort
+from flask_apscheduler import APScheduler
 import logging
 import socket
 import time
@@ -12,6 +13,7 @@ hostIP = "0.0.0.0"
 serverPort = 9090
 
 # import environment variables
+self_ip = os.getenv("CONTAINER_IP", "192.168.33.10")
 username = os.getenv("USERNAME", "tester")
 password = os.getenv("PASSWORD", "testpwd")    
 authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
@@ -21,10 +23,20 @@ container_id = socket.gethostname()
 app = Flask(__name__)
 # app.debug = True
 
+# initialize scheduler for cron jobs
+scheduler = APScheduler()
+scheduler.init_app(app)
+scheduler.start()
 
 # config logger
 logging.basicConfig()
 app.logger.setLevel(logging.INFO)
+# logging.getLogger('apscheduler').setLevel(logging.INFO)
+
+def shutdown_server(msg=None):
+    app.logger.info(msg)
+    scheduler.remove_job('checkin')
+    res = requests.get("http://{}:{}/shutdown".format(self_ip, serverPort))
 
 ######################################################################
 #  L I C E N S I N G    r e l a t e d    f u n c t i o n s
@@ -49,17 +61,29 @@ def revoke_license(license_id):
     res = requests.patch(authsrvr_url + '/licenses/' + str(license_id), json = data)
     return res
 
-def periodically_checkin(license_id):
-
+def periodically_checkin(license_id, license_key):
     data = {
-        "username":"tester",
         "used_by": container_id,
-        "is_active": True,
-        "key": license_id
+        "key": license_key
     }
 
-    res = requests.get(authsrvr_url + '/licenses/' + str(license_id), json = data)
-    return res
+    with scheduler.app.app_context():
+        while True:
+            try:
+                res = requests.post(authsrvr_url + '/licenses/' + str(license_id) + '/checkin', json = data)
+
+                if res.status_code == 200:
+                    app.logger.info("successfully finished checkin without issue!")
+                    break
+                elif res.status_code >= 400 and res.status_code < 500:
+                    shutdown_server("Error: checkin verification failed.")
+                    break
+                elif res.status_code >= 500:
+                    app.logger.error("server side error, try again.")
+                    time.sleep(30)
+            except:
+                shutdown_server("Error: failed to POST /checkin")
+                break
 
 
 ######################################################################
@@ -104,8 +128,23 @@ if __name__ == "__main__":
         if not lic:
             sys.exit("Error: failed to get license.")
 
+        # schedule periodical checkin cron job
+        scheduler.add_job(
+            func=periodically_checkin,
+            id='checkin',
+            trigger='interval', 
+            args=[lic["id"], lic["key"]],
+            seconds=10, 
+            max_instances=1,
+            # misfire_grace_time=60,
+        )
+
         # start the application
         app.run(host=hostIP, port=serverPort)
+
+        # shutdown the scheduler after the flask app exits 
+        scheduler.remove_job('checkin')
+        scheduler.shutdown()
 
         # graceful exit
         while True:
