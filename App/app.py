@@ -100,7 +100,7 @@ def fib(n):
 
 @app.route("/")
 def hello():
-    return "<h1>Hello, This is a Fibonacci Server</h1>"
+    return "<h1>Hello, This is a Fibonacci Server</h1>", 200
 
 @app.route("/fibonacci", methods = ['GET'])
 def fibonacci():
@@ -111,10 +111,14 @@ def fibonacci():
         abort(400)
     return str(fib(n)), 200
 
-# @app.route('/shutdown')
-# def shutdown():
-#     #do things
-#     sys.exit()
+@app.route('/shutdown', methods = ['GET'])
+def shutdown():
+    func = request.environ.get('werkzeug.server.shutdown')
+    if func is None:
+        raise RuntimeError('Not running with the Werkzeug Server')
+    app.logger.info("Info: shutting down the server...")
+    func()
+    return "successful shutdown", 200
 
 
 ######################################################################
