@@ -18,6 +18,8 @@ username = os.getenv("USERNAME", "tester")
 password = os.getenv("PASSWORD", "testpwd")    
 authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
 container_id = socket.gethostname()
+max_checkin_failure = os.getenv("MAX_CHECKIN_FAILURE", 1)
+failed_checkin_count = 0
 
 # create app
 app = Flask(__name__)
@@ -33,10 +35,15 @@ logging.basicConfig()
 app.logger.setLevel(logging.INFO)
 # logging.getLogger('apscheduler').setLevel(logging.INFO)
 
+
+######################################################################
+#  U t i l i t y    f u n c t i o n s
+######################################################################
 def shutdown_server(msg=None):
     app.logger.info(msg)
     scheduler.remove_job('checkin')
     res = requests.get("http://{}:{}/shutdown".format(self_ip, serverPort))
+
 
 ######################################################################
 #  L I C E N S I N G    r e l a t e d    f u n c t i o n s
@@ -62,6 +69,7 @@ def revoke_license(license_id):
     return res
 
 def periodically_checkin(license_id, license_key):
+    global failed_checkin_count, max_checkin_failure
     data = {
         "used_by": container_id,
         "key": license_key
@@ -69,20 +77,28 @@ def periodically_checkin(license_id, license_key):
 
     with scheduler.app.app_context():
         while True:
+            if failed_checkin_count > max_checkin_failure:
+                shutdown_server("Error: failed checkin count exceed max_checkin_failure.")
+                return
+
             try:
                 res = requests.post(authsrvr_url + '/licenses/' + str(license_id) + '/checkin', json = data)
 
                 if res.status_code == 200:
                     app.logger.info("successfully finished checkin without issue!")
+                    failed_checkin_count = 0
                     break
                 elif res.status_code >= 400 and res.status_code < 500:
-                    shutdown_server("Error: checkin verification failed.")
+                    app.logger.error("Error: checkin verification failed.")
+                    failed_checkin_count += 1
                     break
                 elif res.status_code >= 500:
                     app.logger.error("server side error, try again.")
+                    failed_checkin_count += 1
                     time.sleep(30)
             except:
-                shutdown_server("Error: failed to POST /checkin")
+                app.logger.error("Error: failed to POST /checkin")
+                failed_checkin_count += 1
                 break
 
 
@@ -147,7 +163,7 @@ if __name__ == "__main__":
         app.run(host=hostIP, port=serverPort)
 
         # shutdown the scheduler after the flask app exits 
-        scheduler.remove_job('checkin')
+        scheduler.remove_all_jobs()
         scheduler.shutdown()
 
         # graceful exit
