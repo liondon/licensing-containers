@@ -237,7 +237,6 @@ def create_licenses():
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
-    app.logger.debug("public_key: {}".format(public_key.splitlines()[0]))
 
     data["is_active"] = True
     data["private_key"] = private_key.decode('UTF-8','strict')
@@ -249,12 +248,10 @@ def create_licenses():
     lic = License()
     lic.deserialize(data)
     lic.create()
-    app.logger.debug("lic.pub_key: {}".format(lic.pub_key.splitlines()[0]))
 
     message = lic.serialize()
     message["private_key"] = "shh!"
 
-    app.logger.debug("message.pub_key: {}".format(message['pub_key'].splitlines()[0]))
     location_url = url_for("get_licenses", license_id=lic.id, _external=True)
 
     app.logger.info("License with ID [%s] created.", lic.id)
@@ -340,11 +337,13 @@ def periodically_checkin(license_id):
                         label=None
                     )
                 )
+                app.logger.debug("decrypted_message_byte: {}".format(decrypted_message_byte))
 
                 # send the decrypted_message as ascii string
                 decrypted_message = base64.b64encode(decrypted_message_byte).decode('ascii','strict')
                 # For testing the replay attack:
                 # decrypted_message = 'ABCDEFG12345'
+                app.logger.debug("decrypted_message: {}".format(decrypted_message))
 
                 return make_response(jsonify(decrypted_message), status.HTTP_200_OK)
             except:

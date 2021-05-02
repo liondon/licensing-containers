@@ -37,7 +37,8 @@ scheduler.start()
 
 # config logger
 logging.basicConfig()
-app.logger.setLevel(logging.INFO)
+# app.logger.setLevel(logging.INFO)
+app.logger.setLevel(logging.DEBUG)
 # logging.getLogger('apscheduler').setLevel(logging.INFO)
 
 
