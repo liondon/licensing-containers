@@ -19,9 +19,9 @@ import logging
 from flask import Flask, jsonify, request, url_for, make_response, abort
 from flask_api import status  # HTTP Status Codes
 from werkzeug.exceptions import NotFound, Forbidden, InternalServerError
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
 from datetime import datetime
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 import base64
 
 # For this example we'll use SQLAlchemy, a popular ORM that supports a
@@ -316,10 +316,6 @@ def periodically_checkin(license_id):
         req_pub_key = request_body['pub_key']
         lic_cid = lic.used_by
         lic_pub_key = lic.pub_key
-        app.logger.debug("req_cid: {}".format(req_cid))
-        app.logger.debug("req_pub_key: {}".format(req_pub_key))
-        app.logger.debug("lic_cid: {}".format(lic_cid))
-        app.logger.debug("lic_pub_key: {}".format(lic_pub_key))
 
         if lic_cid == req_cid and lic_pub_key == req_pub_key:
             try:
@@ -327,12 +323,30 @@ def periodically_checkin(license_id):
                 lic.last_checkin = datetime.now()
                 lic.update()    # actually write to the database
                 app.logger.info("Successfully updated last_checkin field of current license with id '{}'.".format(license_id))
-                return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
+
                 # convert the encrypted_message from ascii string to bytes
                 encrypted_message = request_body["encrypted_message"]
                 app.logger.debug("encrypted_message: {}".format(encrypted_message))
                 encrypted_message_bytes = base64.b64decode(encrypted_message.encode('ascii', 'strict'))
                 app.logger.debug("encrypted_message_bytes: {}".format(encrypted_message_bytes))
+
+                # decrypt the message
+                private_key_obj = serialization.load_pem_private_key(lic.private_key.encode('UTF-8','strict'), password=b'mypassword')
+                decrypted_message_byte = private_key_obj.decrypt(
+                    encrypted_message_bytes,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None
+                    )
+                )
+
+                # send the decrypted_message as ascii string
+                decrypted_message = base64.b64encode(decrypted_message_byte).decode('ascii','strict')
+                # For testing the replay attack:
+                # decrypted_message = 'ABCDEFG12345'
+
+                return make_response(jsonify(decrypted_message), status.HTTP_200_OK)
             except:
                 raise InternalServerError("Failed to update last_checkin field of current license with id '{}'.".format(license_id))
         else:

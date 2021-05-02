@@ -110,15 +110,28 @@ def periodically_checkin(license_id, license_pub_key):
                 res = requests.post(authsrvr_url + '/licenses/' + str(license_id) + '/checkin', json = data)
 
                 if res.status_code == 200:
+
+                    # convert the decrypted_message from ascii string to bytes
+                    decrypted_message = res.text
+                    app.logger.debug("decrypted_message: {}".format(decrypted_message))
+                    decrypted_message_bytes = base64.b64decode(decrypted_message.encode('ascii', 'strict'))
+                    app.logger.debug("decrypted_message_bytes: {}".format(decrypted_message_bytes))
+
+                    if decrypted_message_bytes != message_bytes:
+                        app.logger.error("Error: the message does not match!")
+                        failed_checkin_count += 1
+                        break
+
                     app.logger.info("successfully finished checkin without issue!")
                     failed_checkin_count = 0
                     break
+
                 elif res.status_code >= 400 and res.status_code < 500:
                     app.logger.error("Error: checkin verification failed.")
                     failed_checkin_count += 1
                     break
                 elif res.status_code >= 500:
-                    app.logger.error("server side error, try again.")
+                    app.logger.error("Error: server side error, try again.")
                     failed_checkin_count += 1
                     time.sleep(30)
             except:
@@ -146,7 +159,7 @@ def hello():
 @app.route("/fibonacci", methods = ['GET'])
 def fibonacci():
     try:
-        app.logger.info("Got a request: ", request.args.get("number"))
+        app.logger.info("Got a request: {}".format(request.args.get("number")))
         n = int(request.args.get("number"))
     except:
         abort(400)

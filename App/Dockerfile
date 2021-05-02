@@ -13,7 +13,12 @@ USER worker
 ENV HOME /app
 ENV PATH="/app/.local/bin:${PATH}"
 
-RUN pip install Flask requests datetime flask_apscheduler
+RUN pip install --no-cache-dir \
+  Flask \
+  requests \
+  datetime \
+  flask_apscheduler \
+  cryptography
 
 # Copy the application contents
 COPY . .
