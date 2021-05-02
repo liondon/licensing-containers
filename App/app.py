@@ -8,6 +8,10 @@ import logging
 import socket
 import time
 from datetime import datetime
+import secrets
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+import base64
 
 hostIP = "0.0.0.0"
 serverPort = 9090
@@ -20,6 +24,7 @@ authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
 container_id = socket.gethostname()
 max_checkin_failure = os.getenv("MAX_CHECKIN_FAILURE", 1)
 failed_checkin_count = 0
+message_bytes = b''
 
 # create app
 app = Flask(__name__)
@@ -32,7 +37,8 @@ scheduler.start()
 
 # config logger
 logging.basicConfig()
-app.logger.setLevel(logging.INFO)
+# app.logger.setLevel(logging.INFO)
+app.logger.setLevel(logging.DEBUG)
 # logging.getLogger('apscheduler').setLevel(logging.INFO)
 
 
@@ -68,12 +74,32 @@ def revoke_license(license_id):
     res = requests.patch(authsrvr_url + '/licenses/' + str(license_id), json = data)
     return res
 
-def periodically_checkin(license_id, license_key):
-    global failed_checkin_count, max_checkin_failure
+def periodically_checkin(license_id, license_pub_key):
+    global failed_checkin_count, max_checkin_failure, message_bytes
+
+    # generate a random message
+    message_bytes = secrets.token_bytes()
+    app.logger.debug("message_bytes: {}".format(message_bytes))
+
+    # encrypt the message
+    pub_key_obj = serialization.load_pem_public_key(license_pub_key.encode('UTF-8','strict'))
+    encrypted_message_bytes = pub_key_obj.encrypt(
+        message_bytes,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    app.logger.debug("encrypted_message_bytes: {}".format(encrypted_message_bytes))
+
     data = {
         "used_by": container_id,
-        "key": license_key
+        "pub_key": license_pub_key,
+        # send the encrypted_message as ascii string
+        "encrypted_message": base64.b64encode(encrypted_message_bytes).decode('ascii','strict')
     }
+    app.logger.debug("data['encrypted_message']: {}".format(data['encrypted_message']))
 
     with scheduler.app.app_context():
         while True:
@@ -85,15 +111,28 @@ def periodically_checkin(license_id, license_key):
                 res = requests.post(authsrvr_url + '/licenses/' + str(license_id) + '/checkin', json = data)
 
                 if res.status_code == 200:
+
+                    # convert the decrypted_message from ascii string to bytes
+                    decrypted_message = res.text
+                    app.logger.debug("decrypted_message: {}".format(decrypted_message))
+                    decrypted_message_bytes = base64.b64decode(decrypted_message.encode('ascii', 'strict'))
+                    app.logger.debug("decrypted_message_bytes: {}".format(decrypted_message_bytes))
+
+                    if decrypted_message_bytes != message_bytes:
+                        app.logger.error("Error: the message does not match!")
+                        failed_checkin_count += 1
+                        break
+
                     app.logger.info("successfully finished checkin without issue!")
                     failed_checkin_count = 0
                     break
+
                 elif res.status_code >= 400 and res.status_code < 500:
                     app.logger.error("Error: checkin verification failed.")
                     failed_checkin_count += 1
                     break
                 elif res.status_code >= 500:
-                    app.logger.error("server side error, try again.")
+                    app.logger.error("Error: server side error, try again.")
                     failed_checkin_count += 1
                     time.sleep(30)
             except:
@@ -121,7 +160,7 @@ def hello():
 @app.route("/fibonacci", methods = ['GET'])
 def fibonacci():
     try:
-        app.logger.info("Got a request: ", request.args.get("number"))
+        app.logger.info("Got a request: {}".format(request.args.get("number")))
         n = int(request.args.get("number"))
     except:
         abort(400)
@@ -153,7 +192,7 @@ if __name__ == "__main__":
             func=periodically_checkin,
             id='checkin',
             trigger='interval', 
-            args=[lic["id"], lic["key"]],
+            args=[lic["id"], lic["pub_key"]],
             seconds=10, 
             max_instances=1,
             # misfire_grace_time=60,

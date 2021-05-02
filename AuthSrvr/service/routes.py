@@ -19,8 +19,10 @@ import logging
 from flask import Flask, jsonify, request, url_for, make_response, abort
 from flask_api import status  # HTTP Status Codes
 from werkzeug.exceptions import NotFound, Forbidden, InternalServerError
-import uuid
 from datetime import datetime
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
+import base64
 
 # For this example we'll use SQLAlchemy, a popular ORM that supports a
 # variety of backends including SQLite, MySQL, and PostgreSQL
@@ -146,7 +148,7 @@ def get_licenses(license_id):
     if not lic:
         raise NotFound("License with id '{}' was not found.".format(license_id))
 
-    app.logger.info("Returning lic: %s", lic.key)
+    app.logger.info("Returning lic: %s", lic.pub_key)
     return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
 
 
@@ -224,8 +226,21 @@ def create_licenses():
     if not check_license_available(data["username"], max_license_available):
         return make_response(jsonify({}), status.HTTP_403_FORBIDDEN)
 
+    private_key_obj = rsa.generate_private_key(public_exponent=65537,key_size=2048)
+    private_key = private_key_obj.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.BestAvailableEncryption(b'mypassword')
+    )
+    public_key_obj = private_key_obj.public_key()
+    public_key = public_key_obj.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+
     data["is_active"] = True
-    data["key"] = uuid.uuid4()
+    data["private_key"] = private_key.decode('UTF-8','strict')
+    data["pub_key"] = public_key.decode('UTF-8','strict')
     data["created_at"] = datetime.now()
     data["revoked_at"] = None
     data["last_checkin"] = datetime.now()
@@ -235,6 +250,8 @@ def create_licenses():
     lic.create()
 
     message = lic.serialize()
+    message["private_key"] = "shh!"
+
     location_url = url_for("get_licenses", license_id=lic.id, _external=True)
 
     app.logger.info("License with ID [%s] created.", lic.id)
@@ -273,7 +290,7 @@ def create_licenses():
 def periodically_checkin(license_id):
     """
     When the application container ping this endpoint,
-    Then AS checks the `container_id` and `key` in request body,
+    Then AS checks the `container_id` and `pub_key` in request body,
     If they do not match the record in DB, 
         return 403 Forbidden
     If they matches the record in DB, 
@@ -291,22 +308,44 @@ def periodically_checkin(license_id):
     # check if request matches the record in DB
     else:
         request_body = request.get_json()
-        req_cid = request_body['used_by']
-        req_key = request_body['key']
-        lic_cid = lic.used_by
-        lic_key = lic.key
-        app.logger.debug("req_cid: {}".format(req_cid))
-        app.logger.debug("req_key: {}".format(req_key))
-        app.logger.debug("lic_cid: {}".format(lic_cid))
-        app.logger.debug("lic_key: {}".format(lic_key))
 
-        if lic_cid == req_cid and lic_key == req_key:
-            # update 'last_checkin' to current time
+        req_cid = request_body['used_by']
+        req_pub_key = request_body['pub_key']
+        lic_cid = lic.used_by
+        lic_pub_key = lic.pub_key
+
+        if lic_cid == req_cid and lic_pub_key == req_pub_key:
             try:
+                # update 'last_checkin' to current time
                 lic.last_checkin = datetime.now()
                 lic.update()    # actually write to the database
                 app.logger.info("Successfully updated last_checkin field of current license with id '{}'.".format(license_id))
-                return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
+
+                # convert the encrypted_message from ascii string to bytes
+                encrypted_message = request_body["encrypted_message"]
+                app.logger.debug("encrypted_message: {}".format(encrypted_message))
+                encrypted_message_bytes = base64.b64decode(encrypted_message.encode('ascii', 'strict'))
+                app.logger.debug("encrypted_message_bytes: {}".format(encrypted_message_bytes))
+
+                # decrypt the message
+                private_key_obj = serialization.load_pem_private_key(lic.private_key.encode('UTF-8','strict'), password=b'mypassword')
+                decrypted_message_byte = private_key_obj.decrypt(
+                    encrypted_message_bytes,
+                    padding.OAEP(
+                        mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                        algorithm=hashes.SHA256(),
+                        label=None
+                    )
+                )
+                app.logger.debug("decrypted_message_byte: {}".format(decrypted_message_byte))
+
+                # send the decrypted_message as ascii string
+                decrypted_message = base64.b64encode(decrypted_message_byte).decode('ascii','strict')
+                # For testing the replay attack:
+                # decrypted_message = 'ABCDEFG12345'
+                app.logger.debug("decrypted_message: {}".format(decrypted_message))
+
+                return make_response(jsonify(decrypted_message), status.HTTP_200_OK)
             except:
                 raise InternalServerError("Failed to update last_checkin field of current license with id '{}'.".format(license_id))
         else:

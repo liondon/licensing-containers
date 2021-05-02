@@ -15,8 +15,10 @@ License - A license in the pool
         - the username of the owner
     used_by (string) 
         - the container_id (or other non-forgeable identifier for containers)
-    key (string) 
-        - the license (uuid)
+    pub_key (text) 
+        - the license is consist of a pub_key and private_key pair
+    private_key (text) 
+        - the license is consist of a pub_key and private_key pair
     is_active (boolean) 
         - True for license is not revoked
     created_at (datetime.datetime() object) 
@@ -58,7 +60,8 @@ class License(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64))
     used_by = db.Column(db.String(64))
-    key = db.Column(db.String(64))
+    pub_key = db.Column(db.Text())
+    private_key = db.Column(db.Text())
     is_active = db.Column(db.Boolean())
     created_at = db.Column(db.DateTime())
     revoked_at = db.Column(db.DateTime())
@@ -69,7 +72,7 @@ class License(db.Model):
     ##################################################
 
     def __repr__(self):
-        return "<License %r>" % (self.key)
+        return "<License %r>" % (self.id)
 
     def create(self):
         """
@@ -97,7 +100,8 @@ class License(db.Model):
             "id": self.id,
             "username": self.username,
             "used_by": self.used_by,
-            "key": self.key,
+            "pub_key": self.pub_key,
+            "private_key": self.private_key,
             "is_active": self.is_active,
             "created_at": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at is not None else None,
             "revoked_at": self.revoked_at.strftime("%Y-%m-%d %H:%M:%S") if self.revoked_at is not None else None,
@@ -118,7 +122,8 @@ class License(db.Model):
         try:
             self.username = data["username"]
             self.used_by = data["used_by"]
-            self.key = data["key"]
+            self.pub_key = data["pub_key"]
+            self.private_key = data["private_key"]
             self.is_active = data["is_active"]
             self.created_at = data["created_at"] 
             self.revoked_at = data["revoked_at"] 
