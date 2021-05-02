@@ -19,7 +19,8 @@ import logging
 from flask import Flask, jsonify, request, url_for, make_response, abort
 from flask_api import status  # HTTP Status Codes
 from werkzeug.exceptions import NotFound, Forbidden, InternalServerError
-import uuid
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives import serialization
 from datetime import datetime
 
 # For this example we'll use SQLAlchemy, a popular ORM that supports a
@@ -146,7 +147,7 @@ def get_licenses(license_id):
     if not lic:
         raise NotFound("License with id '{}' was not found.".format(license_id))
 
-    app.logger.info("Returning lic: %s", lic.key)
+    app.logger.info("Returning lic: %s", lic.pub_key)
     return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
 
 
@@ -224,8 +225,25 @@ def create_licenses():
     if not check_license_available(data["username"], max_license_available):
         return make_response(jsonify({}), status.HTTP_403_FORBIDDEN)
 
+    private_key_obj = rsa.generate_private_key(public_exponent=65537,key_size=2048)
+    private_key = private_key_obj.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.BestAvailableEncryption(b'mypassword')
+    )
+    public_key_obj = private_key_obj.public_key()
+    public_key = public_key_obj.public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo
+    )
+    # app.logger.debug("private_key_obj", str(private_key_obj))
+    # app.logger.debug("private_key", str(private_key))
+    # app.logger.debug("public_key_obj", str(public_key_obj))
+    # app.logger.debug("public_key", str(public_key))
+
     data["is_active"] = True
-    data["key"] = uuid.uuid4()
+    data["private_key"] = private_key
+    data["pub_key"] = public_key
     data["created_at"] = datetime.now()
     data["revoked_at"] = None
     data["last_checkin"] = datetime.now()
@@ -235,6 +253,7 @@ def create_licenses():
     lic.create()
 
     message = lic.serialize()
+    message["private_key"] = "shh!"
     location_url = url_for("get_licenses", license_id=lic.id, _external=True)
 
     app.logger.info("License with ID [%s] created.", lic.id)
@@ -273,7 +292,7 @@ def create_licenses():
 def periodically_checkin(license_id):
     """
     When the application container ping this endpoint,
-    Then AS checks the `container_id` and `key` in request body,
+    Then AS checks the `container_id` and `pub_key` in request body,
     If they do not match the record in DB, 
         return 403 Forbidden
     If they matches the record in DB, 
@@ -292,15 +311,15 @@ def periodically_checkin(license_id):
     else:
         request_body = request.get_json()
         req_cid = request_body['used_by']
-        req_key = request_body['key']
+        req_pub_key = request_body['pub_key']
         lic_cid = lic.used_by
-        lic_key = lic.key
+        lic_pub_key = lic.pub_key
         app.logger.debug("req_cid: {}".format(req_cid))
-        app.logger.debug("req_key: {}".format(req_key))
+        app.logger.debug("req_pub_key: {}".format(req_pub_key))
         app.logger.debug("lic_cid: {}".format(lic_cid))
-        app.logger.debug("lic_key: {}".format(lic_key))
+        app.logger.debug("lic_pub_key: {}".format(lic_pub_key))
 
-        if lic_cid == req_cid and lic_key == req_key:
+        if lic_cid == req_cid and lic_pub_key == req_pub_key:
             # update 'last_checkin' to current time
             try:
                 lic.last_checkin = datetime.now()

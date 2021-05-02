@@ -68,11 +68,11 @@ def revoke_license(license_id):
     res = requests.patch(authsrvr_url + '/licenses/' + str(license_id), json = data)
     return res
 
-def periodically_checkin(license_id, license_key):
+def periodically_checkin(license_id, license_pub_key):
     global failed_checkin_count, max_checkin_failure
     data = {
         "used_by": container_id,
-        "key": license_key
+        "pub_key": license_pub_key
     }
 
     with scheduler.app.app_context():
@@ -153,7 +153,7 @@ if __name__ == "__main__":
             func=periodically_checkin,
             id='checkin',
             trigger='interval', 
-            args=[lic["id"], lic["key"]],
+            args=[lic["id"], lic["pub_key"]],
             seconds=10, 
             max_instances=1,
             # misfire_grace_time=60,
