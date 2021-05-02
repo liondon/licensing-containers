@@ -236,14 +236,11 @@ def create_licenses():
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo
     )
-    # app.logger.debug("private_key_obj", str(private_key_obj))
-    # app.logger.debug("private_key", str(private_key))
-    # app.logger.debug("public_key_obj", str(public_key_obj))
-    # app.logger.debug("public_key", str(public_key))
+    app.logger.debug("public_key: {}".format(public_key.splitlines()[0]))
 
     data["is_active"] = True
-    data["private_key"] = private_key
-    data["pub_key"] = public_key
+    data["private_key"] = private_key.decode('UTF-8','strict')
+    data["pub_key"] = public_key.decode('UTF-8','strict')
     data["created_at"] = datetime.now()
     data["revoked_at"] = None
     data["last_checkin"] = datetime.now()
@@ -251,9 +248,12 @@ def create_licenses():
     lic = License()
     lic.deserialize(data)
     lic.create()
+    app.logger.debug("lic.pub_key: {}".format(lic.pub_key.splitlines()[0]))
 
     message = lic.serialize()
     message["private_key"] = "shh!"
+
+    app.logger.debug("message.pub_key: {}".format(message['pub_key'].splitlines()[0]))
     location_url = url_for("get_licenses", license_id=lic.id, _external=True)
 
     app.logger.info("License with ID [%s] created.", lic.id)
