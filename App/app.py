@@ -8,6 +8,10 @@ import logging
 import socket
 import time
 from datetime import datetime
+import secrets
+from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.asymmetric import padding
+import base64
 
 hostIP = "0.0.0.0"
 serverPort = 9090
@@ -20,6 +24,7 @@ authsrvr_url = os.getenv("AUTH_SERVER", "http://localhost:5000")
 container_id = socket.gethostname()
 max_checkin_failure = os.getenv("MAX_CHECKIN_FAILURE", 1)
 failed_checkin_count = 0
+message_bytes = b''
 
 # create app
 app = Flask(__name__)
@@ -69,11 +74,31 @@ def revoke_license(license_id):
     return res
 
 def periodically_checkin(license_id, license_pub_key):
-    global failed_checkin_count, max_checkin_failure
+    global failed_checkin_count, max_checkin_failure, message_bytes
+
+    # generate a random message
+    message_bytes = secrets.token_bytes()
+    app.logger.debug("message_bytes: {}".format(message_bytes))
+
+    # encrypt the message
+    pub_key_obj = serialization.load_pem_public_key(license_pub_key.encode('UTF-8','strict'))
+    encrypted_message_bytes = pub_key_obj.encrypt(
+        message_bytes,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+    app.logger.debug("encrypted_message_bytes: {}".format(encrypted_message_bytes))
+
     data = {
         "used_by": container_id,
-        "pub_key": license_pub_key
+        "pub_key": license_pub_key,
+        # send the encrypted_message as ascii string
+        "encrypted_message": base64.b64encode(encrypted_message_bytes).decode('ascii','strict')
     }
+    app.logger.debug("data['encrypted_message']: {}".format(data['encrypted_message']))
 
     with scheduler.app.app_context():
         while True:

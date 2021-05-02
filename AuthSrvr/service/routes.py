@@ -22,6 +22,7 @@ from werkzeug.exceptions import NotFound, Forbidden, InternalServerError
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from datetime import datetime
+import base64
 
 # For this example we'll use SQLAlchemy, a popular ORM that supports a
 # variety of backends including SQLite, MySQL, and PostgreSQL
@@ -310,6 +311,7 @@ def periodically_checkin(license_id):
     # check if request matches the record in DB
     else:
         request_body = request.get_json()
+
         req_cid = request_body['used_by']
         req_pub_key = request_body['pub_key']
         lic_cid = lic.used_by
@@ -320,12 +322,17 @@ def periodically_checkin(license_id):
         app.logger.debug("lic_pub_key: {}".format(lic_pub_key))
 
         if lic_cid == req_cid and lic_pub_key == req_pub_key:
-            # update 'last_checkin' to current time
             try:
+                # update 'last_checkin' to current time
                 lic.last_checkin = datetime.now()
                 lic.update()    # actually write to the database
                 app.logger.info("Successfully updated last_checkin field of current license with id '{}'.".format(license_id))
                 return make_response(jsonify(lic.serialize()), status.HTTP_200_OK)
+                # convert the encrypted_message from ascii string to bytes
+                encrypted_message = request_body["encrypted_message"]
+                app.logger.debug("encrypted_message: {}".format(encrypted_message))
+                encrypted_message_bytes = base64.b64decode(encrypted_message.encode('ascii', 'strict'))
+                app.logger.debug("encrypted_message_bytes: {}".format(encrypted_message_bytes))
             except:
                 raise InternalServerError("Failed to update last_checkin field of current license with id '{}'.".format(license_id))
         else:
