@@ -145,6 +145,10 @@ def periodically_checkin(license_id, license_pub_key):
 #  E X A M P L E    C O N T A I N E R I Z E D    A P P
 ######################################################################
 def fib(n):
+    if n == 0:
+        return 0
+    if n == 1:
+        return 1
     minusTwo = 0
     minusOne = 1
     for i in range(2, n + 1):
