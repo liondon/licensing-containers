@@ -36,9 +36,9 @@ scheduler.init_app(app)
 scheduler.start()
 
 # config logger
-logging.basicConfig()
-# app.logger.setLevel(logging.INFO)
-app.logger.setLevel(logging.DEBUG)
+logging.basicConfig(format='%(asctime)s | [%(levelname)s] | %(message)s', datefmt='%m/%d/%Y | %I:%M:%S %p')
+app.logger.setLevel(logging.INFO)
+# app.logger.setLevel(logging.DEBUG)
 # logging.getLogger('apscheduler').setLevel(logging.INFO)
 
 
@@ -164,11 +164,17 @@ def hello():
 @app.route("/fibonacci", methods = ['GET'])
 def fibonacci():
     try:
-        app.logger.info("Got a request: {}".format(request.args.get("number")))
+        start_time = time.time_ns()
+        app.logger.info("{} | Got a request: {}".format(start_time, request.args.get("number")))
         n = int(request.args.get("number"))
     except:
         abort(400)
-    return str(fib(n)), 200
+
+    answer = str(fib(n))
+    end_time = time.time_ns()
+    app.logger.info("{} | Returning Answer: {}".format(end_time, answer))
+    app.logger.info("{} | Total time: {} nanoseconds".format(end_time, end_time - start_time))
+    return "time consumed: {} | answer: {}\n".format(end_time - start_time, answer), 200
 
 @app.route('/shutdown', methods = ['GET'])
 def shutdown():
