@@ -1,11 +1,8 @@
-# Project Title
+# Licensing System for Containerized Application
 
-One Paragraph of project description goes here
+We implemented all the defense mechanisms described in our final report, except for the obfuscation and compilation. 
 
 ## Getting Started
-
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. 
-See deployment for notes on how to deploy the project on a live system.
 
 ### Prerequisites
 
@@ -47,7 +44,7 @@ docker
     docker-compose up
     ```
 
-4. Test the endpoints with POSTMAN or curl from your host machine (NOTE: replace `localhost` with `192.168.33.10` if you're using vagrant VM.)
+4. Test the endpoints with POSTMAN or curl from your host machine (NOTE: replace `localhost` with `192.168.33.10` if you're using the vagrant VM.)
 
     ```sh
     # create a new license (license returned in `key`)
@@ -86,12 +83,14 @@ docker
     curl -X GET "http://localhost:5000/licenses?username=tester&is_active=false"        
     ```
 
-5. Build image and spin up the example containerized app (also a Flask server)
+5. In another termial, build image and spin up the example containerized app (also a Flask server)
 
     ```sh
+    vagrant ssh
+
     cd /vagrant/App
     docker build -t app:1.0 . 
-    docker run -p 9090:9090 --name app app:1.0
+    docker run -p 9090:9090 --name app --rm app:1.0
     ```
 
    **NOTE: you can also change the `USERNAME` environment variable in `App/Dockerfile`, as every user can only have 2 licenses in active now.**
@@ -99,7 +98,7 @@ docker
 6. When the container is spun up, you should see the license printed out:
     ```sh
     # Successfully get license, then the app started:
-    license <class 'dict'> {'created_at': '2021-03-26 04:51:37', 'id': 6, 'is_active': True, 'key': '83646ee4-2750-4156-a0d8-a4cb88471465', 'revoked_at': None, 'used_by': '542f3c4c19c7', 'username': 'tester12'}
+    license <class 'dict'> {'created_at': '2021-05-14 00:06:51', 'id': 2, 'is_active': True, 'last_checkin': '2021-05-14 00:06:51', 'private_key': 'shh!', 'pub_key': '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAtijttWS89VDFL1Qe4/c3\nKV9PFf6CSUDTXACzhjGAajWzPfu41IVp1wjmuGGjFg3IBaFY6T0zwoVx4lhg9jfx\nDE4f2vSiofO8pxyadx/hhhpWr7uXjcHRYwWbCXuBixM9gK0opUDjX3eCe0sngheg\nzp4ncbIAaTCB1nAAGMGvOsxrWGyPn0hFM0cO6dKI5v9Nadjf9CICcA2x5/7fhQUO\nJxXLZPucErS5PDwQmuBR2Gu2RgRws9Mf3PqibDL1q98XfNRGHbCDw7xoWv/8+XJc\nnnjYY/1oEKkd9rc5AABrMSdq0pDChRl/ut8sc+9c8E9ZdtUutVD34YE9qnEg+sqN\nYwIDAQAB\n-----END PUBLIC KEY-----\n', 'revoked_at': None, 'used_by': 'b907cbc83d1a', 'username': 'tester'}
     * Serving Flask app "app" (lazy loading)
     * Environment: production
       WARNING: This is a development server. Do not use it in a production deployment.
@@ -122,7 +121,15 @@ docker
     curl -X GET http://localhost:9090/fibonacci?number=10 
     ```
 
-8.  Remove the containers and/or images
+8. You will see detailed logs for periodical check-in when the app container is running.
+
+9.  Exit the app with `ctrl+c` and you should see the following log:
+    ```
+    Info: revoking license... res.status_code = 200
+    Info: successfully revoked the license.
+    ```
+
+10. Remove the containers and/or images
 
     ```sh
     # list all containers
@@ -135,11 +142,14 @@ docker
     docker rmi <image name>
     ```
 
-9.  Exit and stop the VM
+11. Exit and stop the VM
 
     ```sh
     exit
     vagrant halt
+    
+    # destroy the vagrant machine
+    vagrant destroy
     ```
 
 <!-- ## Running the tests
