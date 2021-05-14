@@ -14,6 +14,7 @@ ENV HOME /app
 ENV PATH="/app/.local/bin:${PATH}"
 
 RUN pip install --no-cache-dir \
+  Werkzeug==1.0.1 \
   Flask \
   requests \
   datetime \

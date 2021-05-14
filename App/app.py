@@ -36,7 +36,7 @@ scheduler.init_app(app)
 scheduler.start()
 
 # config logger
-logging.basicConfig()
+logging.basicConfig(format='%(asctime)s | [%(levelname)s] | %(message)s', datefmt='%m/%d/%Y | %I:%M:%S %p')
 # app.logger.setLevel(logging.INFO)
 app.logger.setLevel(logging.DEBUG)
 # logging.getLogger('apscheduler').setLevel(logging.INFO)
@@ -145,6 +145,10 @@ def periodically_checkin(license_id, license_pub_key):
 #  E X A M P L E    C O N T A I N E R I Z E D    A P P
 ######################################################################
 def fib(n):
+    if n == 0:
+        return 0
+    if n == 1:
+        return 1
     minusTwo = 0
     minusOne = 1
     for i in range(2, n + 1):
@@ -160,11 +164,17 @@ def hello():
 @app.route("/fibonacci", methods = ['GET'])
 def fibonacci():
     try:
-        app.logger.info("Got a request: {}".format(request.args.get("number")))
+        start_time = time.time_ns()
+        app.logger.info("{} | Got a request: {}".format(start_time, request.args.get("number")))
         n = int(request.args.get("number"))
     except:
         abort(400)
-    return str(fib(n)), 200
+
+    answer = str(fib(n))
+    end_time = time.time_ns()
+    app.logger.info("{} | Returning Answer: {}".format(end_time, answer))
+    app.logger.info("{} | Total time: {} nanoseconds".format(end_time, end_time - start_time))
+    return "time consumed: {} | answer: {}\n".format(end_time - start_time, answer), 200
 
 @app.route('/shutdown', methods = ['GET'])
 def shutdown():
